@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Price Watch",
+    "slug": "price-watch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.pricewatch.app"
+    },
+    "android": {
+      "package": "org.pricewatch.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Price Watch uses your location to tag the price you log and to show nearby community-reported prices on the map. Your exact location is never shown publicly — only the general area."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Price Watch uses the camera only to scan a product's barcode so it can look up the exact item you're pricing. Nothing is photographed, stored, or uploaded.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}

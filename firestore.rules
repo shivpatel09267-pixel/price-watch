@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each user can only read/write their own profile document, and can't
+    // tamper with uid/email/createdAt after creation (zipCode is the only
+    // field meant to change, via the onboarding screen or later edits).
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.uid == userId
+                    && request.resource.data.email == request.auth.token.email;
+
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.uid == resource.data.uid
+                    && request.resource.data.email == resource.data.email
+                    && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if false;
+    }
+
+    // Every signed-in user can read all price entries (needed for the
+    // dashboard's "local area average" and the map). Creation is limited
+    // to the user's own userId with sane field types.
+    //
+    // NOTE: because this project isn't on the Blaze plan, there is no
+    // Cloud Function to compute `verified`/`flaggedOutlier` server-side
+    // (see Feature 5) — the client sets them directly. That means a
+    // technically savvy user could fake a verified entry; accepted
+    // trade-off for a free-tier hackathon-scale app, not a gap we forgot.
+    match /priceEntries/{entryId} {
+      allow read: if request.auth != null;
+
+      // Entries are product-first: people search for or scan the exact
+      // item they bought, so `productName` is the required field and
+      // `category` is optional — it's derived from the product's tags,
+      // and plenty of real items (gas, paper towels) map to none of them.
+      // When it IS present it must still be one of the known ids, since
+      // it's the key every average and comparison groups on.
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.productName is string
+                    && request.resource.data.productName.size() > 0
+                    && request.resource.data.productName.size() <= 200
+                    && (
+                         !('category' in request.resource.data.keys())
+                         || request.resource.data.category in [
+                              'gas', 'milk', 'eggs', 'bread', 'ground_beef', 'chicken_breast', 'bacon',
+                              'pork_chops', 'fish', 'cheese', 'butter', 'yogurt', 'rice', 'pasta',
+                              'cereal', 'flour', 'tortillas', 'sugar', 'cooking_oil', 'peanut_butter',
+                              'canned_beans', 'canned_soup', 'apples', 'bananas', 'oranges',
+                              'orange_juice', 'potatoes', 'onions', 'tomatoes', 'lettuce', 'broccoli',
+                              'carrots', 'coffee', 'soda', 'bottled_water', 'toilet_paper',
+                              'paper_towels', 'laundry_detergent', 'dish_soap', 'trash_bags', 'diapers',
+                              'baby_formula', 'steak', 'beef_roast', 'whole_chicken', 'ice_cream',
+                              'dried_beans'
+                            ]
+                       )
+                    && request.resource.data.price is number
+                    && request.resource.data.price > 0
+                    && request.resource.data.price < 1000
+                    && request.resource.data.amount is number
+                    && request.resource.data.amount > 0
+                    && request.resource.data.unitId in [
+                         'lb', 'oz', 'g', 'kg',
+                         'gal', 'qt', 'pt', 'floz', 'l', 'ml',
+                         'each', 'dozen'
+                       ]
+                    && request.resource.data.latitude is number
+                    && request.resource.data.longitude is number
+                    && request.resource.data.zipCode is string
+                    && request.resource.data.timestamp is timestamp
+                    && request.resource.data.verified is bool;
+
+      // verified/flaggedOutlier can't be changed after creation, even by
+      // the entry's own owner — the closest we can get to "only the
+      // (nonexistent) Cloud Function can set these" without one.
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.resource.data.userId == resource.data.userId
+                    && request.resource.data.verified == resource.data.verified
+                    && request.resource.data.get('flaggedOutlier', null) == resource.data.get('flaggedOutlier', null);
+
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}
