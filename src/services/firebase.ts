@@ -6,7 +6,13 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 // `firebase/auth` wrapper: in the installed SDK version, the wrapper's
 // package exports don't route to the React Native build, so
 // getReactNativePersistence isn't reachable through it.
-import { getReactNativePersistence, initializeAuth, type Auth } from '@firebase/auth';
+import {
+  browserLocalPersistence,
+  getReactNativePersistence,
+  initializeAuth,
+  type Auth,
+} from '@firebase/auth';
+import { Platform } from 'react-native';
 import { initializeFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -42,8 +48,16 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 // this, `auth` still works, but every user would be logged out on every
 // app restart — which breaks the "returning users skip straight to the
 // main app" requirement.
+// On web there is no AsyncStorage and `firebase/auth` resolves to the
+// browser build, where getReactNativePersistence doesn't exist at all —
+// calling it throws at module load and nothing renders. Web already has
+// localStorage, so browserLocalPersistence gives the same "stay logged in
+// across reloads" behaviour there.
 export const auth: Auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
+  persistence:
+    Platform.OS === 'web'
+      ? browserLocalPersistence
+      : getReactNativePersistence(AsyncStorage),
 });
 
 // IMPORTANT — the third argument ('default') is not a typo or a no-op.
