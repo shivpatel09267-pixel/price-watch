@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { lookupBarcode, searchProducts, type Product } from '../services/productService';
 import { colors, radius, spacing } from '../constants/theme';
+import * as haptics from '../utils/haptics';
 
 interface ProductPickerProps {
   selected: Product | null;
@@ -151,7 +152,14 @@ export default function ProductPicker({ selected, onSelect }: ProductPickerProps
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {results.map((product) => (
-        <Pressable key={product.barcode} style={styles.row} onPress={() => onSelect(product)}>
+        <Pressable
+          key={product.barcode}
+          style={styles.row}
+          onPress={() => {
+            haptics.selection();
+            onSelect(product);
+          }}
+        >
           <View style={styles.rowDetails}>
             <Text style={styles.rowName} numberOfLines={2}>
               {product.name}
@@ -242,7 +250,7 @@ const styles = StyleSheet.create({
   selectedBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: radius.md,
@@ -296,5 +304,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   manualDisabled: { opacity: 0.5 },
-  manualButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  manualButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
 });

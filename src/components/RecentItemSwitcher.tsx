@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getUnit } from '../constants/units';
 import { colors, radius, spacing } from '../constants/theme';
+import * as haptics from '../utils/haptics';
 import type { PriceEntry } from '../types';
 
 interface RecentItemSwitcherProps {
@@ -33,7 +34,10 @@ export default function RecentItemSwitcher({
         return (
           <Pressable
             key={entry.id}
-            onPress={() => onSelect(entry)}
+            onPress={() => {
+              haptics.selection();
+              onSelect(entry);
+            }}
             style={[styles.pill, selected && styles.pillActive]}
           >
             <Text style={[styles.name, selected && styles.nameActive]} numberOfLines={1}>
@@ -64,7 +68,7 @@ const styles = StyleSheet.create({
   },
   pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   name: { fontSize: 14, fontWeight: '700', color: colors.text },
-  nameActive: { color: '#fff' },
+  nameActive: { color: colors.onPrimary },
   meta: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  metaActive: { color: '#DBEAFE' },
+  metaActive: { color: colors.primaryBorder },
 });

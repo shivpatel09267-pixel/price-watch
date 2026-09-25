@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   calloutBadge: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.onPrimary,
     backgroundColor: colors.success,
     paddingHorizontal: 4,
     paddingVertical: 1,

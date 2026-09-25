@@ -38,6 +38,7 @@ import { useNationalAverages } from '../hooks/useNationalAverages';
 import { checkPriceAgainstNational } from '../utils/priceSanity';
 import { rememberCategory } from '../utils/recentCategories';
 import { colors, radius, spacing } from '../constants/theme';
+import * as haptics from '../utils/haptics';
 
 export interface LogPriceResult {
   productName: string;
@@ -151,25 +152,29 @@ export default function LogPriceModal({ visible, onClose, onSubmitted }: LogPric
     return pricePerBaseUnit(price, amount, unitId);
   }, [priceText, amountText, unitId]);
 
+  // Every rejected submit buzzes the same way, so the feel of "that
+  // didn't go through" is identical whichever field was wrong — and the
+  // haptic can't drift out of sync with the message it belongs to.
+  function reject(message: string) {
+    haptics.warning();
+    setError(message);
+  }
+
   async function handleSubmit() {
     setError('');
     if (!product) {
-      setError('Find the item you bought.');
-      return;
+      return reject('Find the item you bought.');
     }
     if (!store) {
-      setError("Pick the store you're at.");
-      return;
+      return reject("Pick the store you're at.");
     }
     const price = parseFloat(priceText);
     if (!Number.isFinite(price) || price <= 0 || price >= 1000) {
-      setError('Enter a valid price.');
-      return;
+      return reject('Enter a valid price.');
     }
     const amount = parseFloat(amountText);
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError('Enter how much you got for that price.');
-      return;
+      return reject('Enter how much you got for that price.');
     }
 
     // Refuse prices that can't plausibly be real for this item, measured
@@ -182,8 +187,7 @@ export default function LogPriceModal({ visible, onClose, onSubmitted }: LogPric
         getCategory(category).label.toLowerCase()
       );
       if (!sanity.ok) {
-        setError(sanity.message ?? 'That price does not look right.');
-        return;
+        return reject(sanity.message ?? 'That price does not look right.');
       }
     }
 
@@ -218,12 +222,17 @@ export default function LogPriceModal({ visible, onClose, onSubmitted }: LogPric
       const cheapest = await findCheapestNearby(target, entryOrigin).catch(
         (): CheapestNearbyResult => ({ results: [], matchedBy: 'none' })
       );
+      // The one moment worth a real notification buzz: the write landed.
+      haptics.success();
       onSubmitted({ productName: product.name, target, cheapest });
       onClose();
     } catch (submitError) {
       // The user only sees a hedged, friendly message (the write may
       // still land), so the real error has to go somewhere.
       console.warn('[LogPriceModal] submit failed:', submitError);
+      // Distinct from reject(): this one actually failed rather than
+      // being refused for something the user can retype.
+      haptics.error();
       setError(getSubmitErrorMessage(submitError));
       setSubmitting(false);
     }
@@ -435,7 +444,7 @@ const styles = StyleSheet.create({
   },
   unitChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   unitChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  unitChipTextActive: { color: '#fff' },
+  unitChipTextActive: { color: colors.onPrimary },
   normalised: {
     fontSize: 13,
     fontWeight: '600',

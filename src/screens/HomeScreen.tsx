@@ -5,9 +5,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LogPriceModal, { type LogPriceResult } from '../components/LogPriceModal';
 import FindCheapestModal from '../components/FindCheapestModal';
 import RecentEntryRow from '../components/RecentEntryRow';
+import PrimaryButton from '../components/PrimaryButton';
 import { useAuth } from '../context/AuthContext';
 import { useRecentEntries } from '../hooks/useRecentEntries';
-import { colors, radius, spacing } from '../constants/theme';
+import { card, colors, radius, shadows, spacing, type } from '../constants/theme';
+import * as haptics from '../utils/haptics';
 
 // Opens the device's own Maps app pinned at a point — used for "view the
 // cheapest nearby report on a map" below. No place/business name exists
@@ -44,7 +46,16 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Price Watch</Text>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>Price Watch</Text>
+            <Text style={styles.title}>
+              {entries.length === 0
+                ? 'Log your first price'
+                : `${entries.length} ${entries.length === 1 ? 'price' : 'prices'} logged`}
+            </Text>
+          </View>
+        </View>
 
         {successInfo ? (
           <View style={styles.successBanner}>
@@ -53,9 +64,10 @@ export default function HomeScreen() {
               <Text style={styles.successText}>Price logged!</Text>
               {cheapest ? (
                 <Pressable
-                  onPress={() =>
-                    openInMaps(cheapest.latitude, cheapest.longitude, cheapest.storeName)
-                  }
+                  onPress={() => {
+                    haptics.tap();
+                    openInMaps(cheapest.latitude, cheapest.longitude, cheapest.storeName);
+                  }}
                 >
                   <Text style={styles.cheapestText}>
                     {/* "Similar item" rather than the product name when the
@@ -78,15 +90,33 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <Pressable style={styles.addButton} onPress={() => setModalVisible(true)}>
-          <MaterialCommunityIcons name="plus" size={36} color="#fff" />
-        </Pressable>
-        <Text style={styles.addLabel}>Log a Price</Text>
-
-        <Pressable style={styles.findCheapestButton} onPress={() => setFindCheapestVisible(true)}>
-          <MaterialCommunityIcons name="tag-search" size={20} color={colors.primary} />
-          <Text style={styles.findCheapestText}>Find Cheapest Near Me</Text>
-        </Pressable>
+        {/* The hero carries the app's one job in plain language, then the
+            two things you can actually do about it. Keeping both pills
+            inside one panel stops the screen reading as a stack of
+            unrelated buttons. */}
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <MaterialCommunityIcons name="tag-multiple" size={22} color={colors.primary} />
+          </View>
+          <Text style={styles.heroTitle}>What did you pay?</Text>
+          <Text style={styles.heroBody}>
+            Log what an item actually cost you and see how it compares to nearby stores and the
+            national average.
+          </Text>
+          <View style={styles.heroActions}>
+            <PrimaryButton
+              label="Log a Price"
+              icon="plus"
+              onPress={() => setModalVisible(true)}
+            />
+            <PrimaryButton
+              label="Find Cheapest Near Me"
+              icon="tag-search"
+              variant="secondary"
+              onPress={() => setFindCheapestVisible(true)}
+            />
+          </View>
+        </View>
 
         <Text style={styles.sectionTitle}>Your Recent Entries</Text>
         {loading ? null : entries.length === 0 ? (
@@ -115,56 +145,44 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, backgroundColor: colors.background, padding: spacing.lg },
-  title: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  header: { marginBottom: spacing.lg },
+  eyebrow: { ...type.overline, color: colors.primary, marginBottom: spacing.xs },
+  title: { ...type.display, color: colors.text },
   successBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#DCFCE7',
-    borderRadius: radius.sm,
-    padding: spacing.sm,
+    backgroundColor: colors.successSoft,
+    // A colour-matched left rule reads as "status" at a glance, which a
+    // plain tinted rectangle doesn't.
+    borderLeftWidth: 3,
+    borderLeftColor: colors.success,
+    borderRadius: radius.md,
+    padding: spacing.md,
     marginBottom: spacing.md,
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   successTextGroup: { flex: 1 },
-  successText: { color: colors.success, fontWeight: '600' },
+  successText: { ...type.bodyStrong, color: colors.success },
   cheapestText: { color: colors.primary, fontSize: 13, fontWeight: '600', marginTop: 2 },
   cheapestTextMuted: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  addButton: {
-    alignSelf: 'center',
-    width: 88,
-    height: 88,
+  hero: {
+    ...card,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.sm,
+  },
+  heroIcon: {
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    marginBottom: spacing.md,
   },
-  addLabel: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  findCheapestButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  findCheapestText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
-  emptyText: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: spacing.lg },
+  heroTitle: { ...type.title, color: colors.text, marginBottom: spacing.sm },
+  heroBody: { ...type.body, color: colors.textMuted, lineHeight: 21, marginBottom: spacing.lg },
+  heroActions: { gap: spacing.sm },
+  sectionTitle: { ...type.heading, color: colors.text, marginBottom: spacing.md },
+  emptyText: { ...type.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg },
 });

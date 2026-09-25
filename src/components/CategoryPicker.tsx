@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CATEGORIES, type CategoryDef, type CategoryId } from '../constants/categories';
 import { getRecentCategories } from '../utils/recentCategories';
 import { colors, radius, spacing } from '../constants/theme';
+import * as haptics from '../utils/haptics';
 
 interface CategoryPickerProps {
   selected: CategoryId | null;
@@ -41,7 +42,10 @@ export default function CategoryPicker({ selected, onSelect }: CategoryPickerPro
     return (
       <Pressable
         key={`${keyPrefix}${category.id}`}
-        onPress={() => onSelect(category.id)}
+        onPress={() => {
+          haptics.selection();
+          onSelect(category.id);
+        }}
         style={[
           styles.tile,
           isSelected && {

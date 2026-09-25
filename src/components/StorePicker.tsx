@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { findNearbyStores, type NearbyStore } from '../services/storeService';
 import { colors, radius, spacing } from '../constants/theme';
+import * as haptics from '../utils/haptics';
 import type { LatLng } from '../utils/geo';
 
 // How close you must actually be to a store to log a price there. This is
@@ -113,7 +114,11 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
         return (
           <Pressable
             key={store.id}
-            onPress={() => !tooFar && onSelect(store)}
+            onPress={() => {
+              if (tooFar) return;
+              haptics.selection();
+              onSelect(store);
+            }}
             disabled={tooFar}
             style={[styles.row, isSelected && styles.rowSelected, tooFar && styles.rowDisabled]}
           >
@@ -231,7 +236,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     marginBottom: spacing.xs,
   },
-  rowSelected: { borderColor: colors.primary, backgroundColor: '#EFF6FF' },
+  rowSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   rowDisabled: { opacity: 0.45 },
   rowDetails: { flex: 1 },
   rowName: { fontSize: 14, fontWeight: '600', color: colors.text },
@@ -271,5 +276,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   manualButtonDisabled: { opacity: 0.5 },
-  manualButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  manualButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
 });

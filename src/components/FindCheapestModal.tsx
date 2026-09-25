@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   rankBest: { backgroundColor: colors.success },
   rankText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  rankTextBest: { color: '#fff' },
+  rankTextBest: { color: colors.onPrimary },
   rowDetails: { flex: 1 },
   rowPrice: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowUnit: { fontSize: 12, fontWeight: '400', color: colors.textMuted },
