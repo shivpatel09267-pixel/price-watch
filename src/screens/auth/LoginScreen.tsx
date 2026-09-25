@@ -7,7 +7,7 @@ import AuthTextInput from '../../components/AuthTextInput';
 import PrimaryButton from '../../components/PrimaryButton';
 import { signIn } from '../../services/authService';
 import { getAuthErrorMessage, isValidEmail } from '../../utils/validation';
-import { colors, spacing } from '../../constants/theme';
+import { colors, spacing, type } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -64,9 +64,19 @@ export default function LoginScreen({ navigation }: Props) {
             textContentType="password"
           />
 
+          {/* Sits directly under the password field, where someone who
+              just failed a login is already looking. */}
+          <Text
+            style={styles.forgot}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            accessibilityRole="button"
+          >
+            Forgot password?
+          </Text>
+
           {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
-          <PrimaryButton label="Log In" onPress={handleLogin} loading={submitting} />
+          <PrimaryButton label="Log In" icon="login" onPress={handleLogin} loading={submitting} />
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
@@ -83,21 +93,27 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
+  title: { ...type.display, color: colors.text, textAlign: 'center', marginBottom: spacing.xs },
   subtitle: {
-    fontSize: 14,
+    ...type.body,
     color: colors.textMuted,
     textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  forgot: {
+    ...type.caption,
+    fontWeight: '600',
+    color: colors.primary,
+    textAlign: 'right',
     marginBottom: spacing.lg,
   },
-  formError: { color: colors.danger, fontSize: 13, textAlign: 'center', marginBottom: spacing.md },
+  formError: {
+    ...type.caption,
+    color: colors.danger,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
-  footerText: { color: colors.textMuted, fontSize: 14 },
-  link: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  footerText: { ...type.body, color: colors.textMuted },
+  link: { ...type.bodyStrong, color: colors.primary },
 });

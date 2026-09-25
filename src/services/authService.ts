@@ -5,6 +5,7 @@
 // consistent with services/firebase.ts — see the comment there for why.
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from '@firebase/auth';
@@ -35,6 +36,19 @@ export async function signIn(email: string, password: string): Promise<void> {
 
 export async function signOutUser(): Promise<void> {
   await firebaseSignOut(auth);
+}
+
+// Firebase stores only a password hash, so a forgotten password can't be
+// looked up or recovered by anyone — including from the Firebase console.
+// Emailing a reset link is the only route back into an existing account.
+//
+// Note this usually resolves even for an address with no account: Firebase
+// projects have email-enumeration protection on by default, which makes
+// the call succeed regardless so an attacker can't use this endpoint to
+// discover which addresses are registered. The screen's wording has to
+// stay honest about that — it can't promise an email was actually sent.
+export async function sendPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email);
 }
 
 // Saves the zip code from the onboarding screen.
