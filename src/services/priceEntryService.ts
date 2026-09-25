@@ -1,12 +1,15 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   getDocs,
   limit,
   query,
   serverTimestamp,
   Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { captureLocation } from './locationService';
@@ -270,4 +273,43 @@ export async function findCheapestNearby(
 ): Promise<CheapestNearbyResult> {
   const { results, matchedBy } = await findCheapestNearbyList(target, origin);
   return { results: results.slice(0, 1), matchedBy };
+}
+
+
+// Deleting is owner-only, enforced in firestore.rules:
+//   allow delete: if request.auth.uid == resource.data.userId
+// so there's no need to re-check ownership here — a request for someone
+// else's entry is rejected by the server regardless of what the client
+// believes.
+export async function deletePriceEntry(entryId: string): Promise<void> {
+  await withTimeout(deleteDoc(doc(db, 'priceEntries', entryId)), FIRESTORE_TIMEOUT_MS);
+}
+
+// Wipes every price this user has logged.
+//
+// IMPORTANT — what this does NOT remove: the `users/{uid}` profile
+// document (email, zip code, createdAt). firestore.rules has
+// `allow delete: if false` on that collection, so the client genuinely
+// cannot delete it, and the Firebase Auth account itself also survives.
+// The UI has to say "your logged prices", not "your account", or it's
+// promising something it can't do.
+export async function deleteAllPriceEntriesForUser(userId: string): Promise<number> {
+  const snapshot = await withTimeout(
+    getDocs(query(collection(db, 'priceEntries'), where('userId', '==', userId))),
+    FIRESTORE_TIMEOUT_MS
+  );
+  if (snapshot.empty) return 0;
+
+  // Firestore caps a batch at 500 writes, and someone who has been
+  // logging prices for a while can exceed that.
+  const BATCH_LIMIT = 500;
+  const docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const entry of docs.slice(i, i + BATCH_LIMIT)) {
+      batch.delete(entry.ref);
+    }
+    await withTimeout(batch.commit(), FIRESTORE_TIMEOUT_MS);
+  }
+  return docs.length;
 }
