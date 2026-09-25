@@ -80,7 +80,7 @@ export default function SettingsScreen() {
             stop counting toward local averages for everyone.
           </Text>
           <PrimaryButton
-            label="Delete All My Data"
+            label="Clear Price Log"
             icon="trash-can-outline"
             variant="secondary"
             onPress={() => setConfirmingWipe(true)}
@@ -94,13 +94,13 @@ export default function SettingsScreen() {
       <ConfirmModal
         visible={confirmingWipe}
         destructive
-        title="Delete all your data?"
+        title="Clear your price log?"
         // Deliberately specific about the limits: the Firestore rules
         // forbid deleting the user profile document, and this doesn't
         // touch the Firebase Auth account either. Saying "all your data"
         // without that caveat would overpromise.
         message="Every price you've logged will be permanently deleted. Your account and email stay — sign out instead if that's what you wanted."
-        confirmLabel="Delete everything"
+        confirmLabel="Clear price log"
         loading={wiping}
         onConfirm={handleDeleteAll}
         onCancel={() => setConfirmingWipe(false)}
