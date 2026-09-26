@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   collection,
   limit,
@@ -63,6 +64,10 @@ export function useCategoryStats(
   origin: LatLng | null,
   category: CategoryId | null
 ): CategoryStats {
+  // See useMapEntries: tab screens stay mounted, so these two
+  // subscriptions would otherwise keep pulling documents while the user
+  // is on another tab.
+  const isFocused = useIsFocused();
   const [personalEntries, setPersonalEntries] = useState<PricePoint[]>([]);
   const [localPrices, setLocalPrices] = useState<number[]>([]);
   const [dimension, setDimension] = useState<UnitDimension | null>(null);
@@ -76,6 +81,7 @@ export function useCategoryStats(
       setPersonalLoading(false);
       return;
     }
+    if (!isFocused) return;
     setPersonalLoading(true);
     // Cleared on every category change so a previous item's unit label
     // can't linger over the new item's numbers.
@@ -117,7 +123,7 @@ export function useCategoryStats(
       }
     );
     return unsubscribe;
-  }, [userId, category]);
+  }, [userId, category, isFocused]);
 
   useEffect(() => {
     if (!origin || !category) {
@@ -125,6 +131,7 @@ export function useCategoryStats(
       setLocalLoading(false);
       return;
     }
+    if (!isFocused) return;
     setLocalLoading(true);
     const since = Timestamp.fromMillis(Date.now() - THIRTY_DAYS_MS);
     // Note there's no zipCode filter here any more: "local" is a real
@@ -170,7 +177,7 @@ export function useCategoryStats(
       }
     );
     return unsubscribe;
-  }, [origin?.latitude, origin?.longitude, category]);
+  }, [origin?.latitude, origin?.longitude, category, isFocused]);
 
   return {
     personalEntries,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   collection,
   limit,
@@ -25,11 +26,22 @@ const QUERY_LIMIT = 300;
 // used by the map. Filtering to "last 7 days" happens in the query itself
 // (an index range, not a client-side check), per the spec's requirement
 // that old entries never even come down to the device.
+// Listeners are gated on screen focus. A bottom-tab navigator keeps every
+// screen mounted, so without this the Map and Dashboard queries keep
+// streaming documents while the user is sitting on Home — billed reads
+// for pixels nobody is looking at. On blur the effect's cleanup detaches
+// the listener; on focus it re-attaches. Existing state is deliberately
+// NOT cleared on blur, so returning to the tab shows the last known data
+// immediately instead of an empty screen.
 export function useMapEntries() {
+  const isFocused = useIsFocused();
   const [entries, setEntries] = useState<PriceEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Blur re-runs this effect, which detaches the listener via cleanup
+    // and then attaches nothing.
+    if (!isFocused) return;
     const since = Timestamp.fromMillis(Date.now() - SEVEN_DAYS_MS);
     const mapQuery = query(
       collection(db, 'priceEntries'),
@@ -53,7 +65,7 @@ export function useMapEntries() {
     );
 
     return unsubscribe;
-  }, []);
+  }, [isFocused]);
 
   return { entries, loading };
 }
