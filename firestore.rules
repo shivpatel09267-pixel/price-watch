@@ -89,12 +89,20 @@ service cloud.firestore {
     // Every signed-in user can read all price entries (needed for the
     // dashboard's "local area average" and the map).
     //
-    // PRIVACY, UNRESOLVED: these documents carry userId alongside exact
-    // latitude/longitude, address and timestamp, so any signed-in account
-    // can reconstruct where a given person shops and when. Rules alone
-    // can't fix this — the stored data has to get coarser (rounded
-    // coordinates, no street address) before this read rule can be
-    // considered safe. Tracked, not forgotten.
+    // PRIVACY: a document's coordinates are the SHOP's, not the
+    // reporter's — public facts about a business — except for hand-typed
+    // stores, which are pinned to the reporter's own device position.
+    // Those are rounded to ~1km before they're written (see
+    // pinnedLocation in priceEntryService.ts), because entries also carry
+    // userId and a timestamp, and full GPS precision would publish where
+    // a named person stood and when.
+    //
+    // Rounding is enforced by the client, not here, on purpose: writing
+    // precise coordinates only exposes the account doing the writing, so
+    // there's nothing to defend other users against. What this rule does
+    // still permit is correlating one userId's entries into a coarse
+    // pattern of where they shop — acceptable while it's shop-level, and
+    // the reason userId shouldn't be joined to anything finer.
     //
     // NOTE: because this project isn't on the Blaze plan, there is no
     // Cloud Function to compute `verified`/`flaggedOutlier` server-side

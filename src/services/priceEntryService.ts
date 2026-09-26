@@ -44,6 +44,39 @@ export interface LogPriceParams {
   unitId: string;
 }
 
+// Where an entry gets pinned on the map, and how precisely.
+//
+// For a store OpenStreetMap already knows about, these are the SHOP's
+// coordinates and OSM address — public facts about a business, so they're
+// stored exactly as-is.
+//
+// A hand-typed store is different: there's no mapped shop to borrow a
+// position from, so the entry is pinned to the REPORTER'S own device
+// coordinates (see StorePicker). Every signed-in user can read every
+// entry, and entries carry userId and a timestamp — so storing those at
+// full GPS precision would publish a trace of exactly where a named
+// person stood, and when. Rounding to 2 decimal places blurs that to
+// roughly a kilometre, which costs nothing downstream: the coordinates
+// are only used to filter by a 20-mile radius and to drop a map pin.
+function pinnedLocation(store: NearbyStore): {
+  latitude: number;
+  longitude: number;
+  address: string | null;
+} {
+  const isManual = store.id.startsWith('manual/');
+  if (!isManual) {
+    return { latitude: store.latitude, longitude: store.longitude, address: store.address };
+  }
+  const round = (value: number) => Math.round(value * 100) / 100;
+  return {
+    latitude: round(store.latitude),
+    longitude: round(store.longitude),
+    // Manual stores already carry no address; being explicit stops a
+    // reverse-geocoded one being introduced here later by accident.
+    address: null,
+  };
+}
+
 export async function logPriceEntry({
   userId,
   fallbackZip,
@@ -60,11 +93,7 @@ export async function logPriceEntry({
   // to prove the reporter was at the store (the proximity check happens
   // in the UI). The entry itself is pinned to the STORE's coordinates.
   const { zipCode } = await captureLocation(fallbackZip);
-  const { latitude, longitude, address } = {
-    latitude: store.latitude,
-    longitude: store.longitude,
-    address: store.address,
-  };
+  const { latitude, longitude, address } = pinnedLocation(store);
 
   const normalised = pricePerBaseUnit(price, amount, unitId);
 
