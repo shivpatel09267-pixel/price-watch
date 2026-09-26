@@ -2,19 +2,83 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // How many canonical base units one of each unit equals. Mirrors
+    // UNITS in src/constants/units.ts — base units are pound, gallon,
+    // and "one item". If a unit is ever added there, it has to be added
+    // here too or entries using it will be rejected.
+    function unitPerBase(unitId) {
+      return {
+        'lb': 1.0, 'oz': 0.0625, 'g': 0.0022046226, 'kg': 2.20462,
+        'gal': 1.0, 'qt': 0.25, 'pt': 0.125, 'floz': 0.0078125,
+        'l': 0.264172, 'ml': 0.000264172,
+        'each': 1.0, 'dozen': 12.0
+      }[unitId];
+    }
+
+    function unitDimension(unitId) {
+      return {
+        'lb': 'weight', 'oz': 'weight', 'g': 'weight', 'kg': 'weight',
+        'gal': 'volume', 'qt': 'volume', 'pt': 'volume', 'floz': 'volume',
+        'l': 'volume', 'ml': 'volume',
+        'each': 'count', 'dozen': 'count'
+      }[unitId];
+    }
+
+    function isKnownUnit(unitId) {
+      return unitId in [
+        'lb', 'oz', 'g', 'kg',
+        'gal', 'qt', 'pt', 'floz', 'l', 'ml',
+        'each', 'dozen'
+      ];
+    }
+
+    function isKnownCategory(category) {
+      return category in [
+        'gas', 'milk', 'eggs', 'bread', 'ground_beef', 'chicken_breast', 'bacon',
+        'pork_chops', 'fish', 'cheese', 'butter', 'yogurt', 'rice', 'pasta',
+        'cereal', 'flour', 'tortillas', 'sugar', 'cooking_oil', 'peanut_butter',
+        'canned_beans', 'canned_soup', 'apples', 'bananas', 'oranges',
+        'orange_juice', 'potatoes', 'onions', 'tomatoes', 'lettuce', 'broccoli',
+        'carrots', 'coffee', 'soda', 'bottled_water', 'toilet_paper',
+        'paper_towels', 'laundry_detergent', 'dish_soap', 'trash_bags', 'diapers',
+        'baby_formula', 'steak', 'beef_roast', 'whole_chicken', 'ice_cream',
+        'dried_beans'
+      ];
+    }
+
+    function isBoundedString(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
     // Each user can only read/write their own profile document, and can't
     // tamper with uid/email/createdAt after creation (zipCode is the only
     // field meant to change, via the onboarding screen or later edits).
+    //
+    // hasOnly() pins the shape in both directions: without it, `update`
+    // only guarded three fields, so a user could grow their own document
+    // with arbitrary extra keys up to Firestore's 1 MB limit.
     match /users/{userId} {
+      function validProfile(data) {
+        return data.keys().hasOnly(['uid', 'email', 'zipCode', 'createdAt'])
+               && data.keys().hasAll(['uid', 'email', 'zipCode', 'createdAt'])
+               && data.uid is string
+               && data.email is string
+               && data.zipCode is string
+               && data.zipCode.size() <= 10;
+      }
+
       allow read: if request.auth != null && request.auth.uid == userId;
 
       allow create: if request.auth != null
                     && request.auth.uid == userId
+                    && validProfile(request.resource.data)
                     && request.resource.data.uid == userId
-                    && request.resource.data.email == request.auth.token.email;
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.createdAt == request.time;
 
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    && validProfile(request.resource.data)
                     && request.resource.data.uid == resource.data.uid
                     && request.resource.data.email == resource.data.email
                     && request.resource.data.createdAt == resource.data.createdAt;
@@ -23,8 +87,14 @@ service cloud.firestore {
     }
 
     // Every signed-in user can read all price entries (needed for the
-    // dashboard's "local area average" and the map). Creation is limited
-    // to the user's own userId with sane field types.
+    // dashboard's "local area average" and the map).
+    //
+    // PRIVACY, UNRESOLVED: these documents carry userId alongside exact
+    // latitude/longitude, address and timestamp, so any signed-in account
+    // can reconstruct where a given person shops and when. Rules alone
+    // can't fix this — the stored data has to get coarser (rounded
+    // coordinates, no street address) before this read rule can be
+    // considered safe. Tracked, not forgotten.
     //
     // NOTE: because this project isn't on the Blaze plan, there is no
     // Cloud Function to compute `verified`/`flaggedOutlier` server-side
@@ -32,57 +102,95 @@ service cloud.firestore {
     // technically savvy user could fake a verified entry; accepted
     // trade-off for a free-tier hackathon-scale app, not a gap we forgot.
     match /priceEntries/{entryId} {
-      allow read: if request.auth != null;
-
       // Entries are product-first: people search for or scan the exact
       // item they bought, so `productName` is the required field and
       // `category` is optional — it's derived from the product's tags,
       // and plenty of real items (gas, paper towels) map to none of them.
       // When it IS present it must still be one of the known ids, since
       // it's the key every average and comparison groups on.
+      function validEntry(data) {
+        return data.keys().hasOnly([
+                 'userId', 'productName', 'brand', 'barcode', 'category',
+                 'price', 'amount', 'unitId', 'pricePerBase', 'dimension',
+                 'latitude', 'longitude', 'zipCode', 'address',
+                 'storeName', 'storeId', 'storeBranch',
+                 'timestamp', 'verified', 'flaggedOutlier'
+               ])
+               && data.keys().hasAll([
+                    'userId', 'productName', 'price', 'amount', 'unitId',
+                    'latitude', 'longitude', 'zipCode', 'storeName', 'storeId',
+                    'timestamp', 'verified'
+                  ])
+               && isBoundedString(data.productName, 200)
+               && (!('brand' in data.keys()) || isBoundedString(data.brand, 200))
+               && (!('barcode' in data.keys()) || isBoundedString(data.barcode, 100))
+               && (!('category' in data.keys()) || isKnownCategory(data.category))
+               && data.price is number
+               && data.price > 0
+               && data.price < 1000
+               && data.amount is number
+               && data.amount > 0
+               // Previously unbounded, which was the cheap way to poison
+               // the "cheapest nearby" ranking: a huge amount drives the
+               // normalised per-unit price to near zero.
+               && data.amount <= 10000
+               && isKnownUnit(data.unitId)
+               // pricePerBase is what the cheapest-nearby list actually
+               // sorts on, and it used to be accepted unchecked — so any
+               // value at all could be written straight into the ranking.
+               // It now has to match what price/amount/unitId imply, with
+               // 1% of slack for floating-point drift between the client's
+               // conversion and this one.
+               && (
+                    !('pricePerBase' in data.keys())
+                    || (
+                         data.pricePerBase is number
+                         && data.pricePerBase > 0
+                         && data.pricePerBase >= (data.price / (data.amount * unitPerBase(data.unitId))) * 0.99
+                         && data.pricePerBase <= (data.price / (data.amount * unitPerBase(data.unitId))) * 1.01
+                         && data.dimension == unitDimension(data.unitId)
+                       )
+                  )
+               && (!('dimension' in data.keys()) || 'pricePerBase' in data.keys())
+               && data.latitude is number
+               && data.latitude >= -90
+               && data.latitude <= 90
+               && data.longitude is number
+               && data.longitude >= -180
+               && data.longitude <= 180
+               // Empty is legitimate, not a bug: captureLocation() falls
+               // back to the profile's zip, which is '' until onboarding
+               // fills it in, and reverse geocoding can fail. Requiring a
+               // non-empty value here would reject real entries.
+               && data.zipCode is string
+               && data.zipCode.size() <= 10
+               && (!('address' in data.keys()) || isBoundedString(data.address, 300))
+               && isBoundedString(data.storeName, 200)
+               && isBoundedString(data.storeId, 200)
+               && (!('storeBranch' in data.keys()) || isBoundedString(data.storeBranch, 200))
+               && data.verified is bool
+               && (!('flaggedOutlier' in data.keys()) || data.flaggedOutlier is bool);
+      }
+
+      allow read: if request.auth != null;
+
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.productName is string
-                    && request.resource.data.productName.size() > 0
-                    && request.resource.data.productName.size() <= 200
-                    && (
-                         !('category' in request.resource.data.keys())
-                         || request.resource.data.category in [
-                              'gas', 'milk', 'eggs', 'bread', 'ground_beef', 'chicken_breast', 'bacon',
-                              'pork_chops', 'fish', 'cheese', 'butter', 'yogurt', 'rice', 'pasta',
-                              'cereal', 'flour', 'tortillas', 'sugar', 'cooking_oil', 'peanut_butter',
-                              'canned_beans', 'canned_soup', 'apples', 'bananas', 'oranges',
-                              'orange_juice', 'potatoes', 'onions', 'tomatoes', 'lettuce', 'broccoli',
-                              'carrots', 'coffee', 'soda', 'bottled_water', 'toilet_paper',
-                              'paper_towels', 'laundry_detergent', 'dish_soap', 'trash_bags', 'diapers',
-                              'baby_formula', 'steak', 'beef_roast', 'whole_chicken', 'ice_cream',
-                              'dried_beans'
-                            ]
-                       )
-                    && request.resource.data.price is number
-                    && request.resource.data.price > 0
-                    && request.resource.data.price < 1000
-                    && request.resource.data.amount is number
-                    && request.resource.data.amount > 0
-                    && request.resource.data.unitId in [
-                         'lb', 'oz', 'g', 'kg',
-                         'gal', 'qt', 'pt', 'floz', 'l', 'ml',
-                         'each', 'dozen'
-                       ]
-                    && request.resource.data.latitude is number
-                    && request.resource.data.longitude is number
-                    && request.resource.data.zipCode is string
-                    && request.resource.data.timestamp is timestamp
-                    && request.resource.data.verified is bool;
+                    && validEntry(request.resource.data)
+                    // Client-supplied timestamps let an entry sit in the
+                    // future, where it stays inside the cheapest-nearby
+                    // lookback window forever and always sorts as newest.
+                    && request.resource.data.timestamp == request.time;
 
-      // verified/flaggedOutlier can't be changed after creation, even by
-      // the entry's own owner — the closest we can get to "only the
-      // (nonexistent) Cloud Function can set these" without one.
-      allow update: if request.auth != null
-                    && request.auth.uid == resource.data.userId
-                    && request.resource.data.userId == resource.data.userId
-                    && request.resource.data.verified == resource.data.verified
-                    && request.resource.data.get('flaggedOutlier', null) == resource.data.get('flaggedOutlier', null);
+      // No edit path exists in the app — entries are created and deleted,
+      // never modified (see priceEntryService.ts). The previous update
+      // rule only pinned userId/verified/flaggedOutlier and left price,
+      // pricePerBase, coordinates and productName wide open, which made
+      // every check above bypassable with a single follow-up write.
+      // Closing it entirely is both the accurate description of the app
+      // and the tighter rule. Re-open it with validEntry() applied if an
+      // edit feature is ever added.
+      allow update: if false;
 
       allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
