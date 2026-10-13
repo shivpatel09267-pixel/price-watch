@@ -1,5 +1,6 @@
 import { withTimeout } from '../utils/async';
-import type { CategoryId } from '../constants/categories';
+import { CATEGORIES, type CategoryId } from '../constants/categories';
+import { englishName, filterAndRank } from '../utils/productSearch';
 
 // Product lookup powered by Open Food Facts — a free, open, barcode-level
 // product database (effectively the open-source equivalent of the food
@@ -25,7 +26,11 @@ const OFF_SEARCH_URL = 'https://search.openfoodfacts.org/search';
 const OFF_LEGACY_SEARCH_URL = 'https://world.openfoodfacts.org/cgi/search.pl';
 const OFF_PRODUCT_URL = 'https://world.openfoodfacts.org/api/v2/product';
 const REQUEST_TIMEOUT_MS = 20000;
-const SEARCH_PAGE_SIZE = 20;
+// How many results are shown, and how many are fetched to get there —
+// most of what the service returns is dropped by filterAndRank(), so it
+// has to be asked for several times what's actually displayed.
+const SEARCH_RESULT_LIMIT = 20;
+const SEARCH_FETCH_SIZE = 100;
 const USER_AGENT = 'PriceWatch/1.0 (Congressional App Challenge student project)';
 
 export interface Product {
@@ -46,9 +51,12 @@ export interface Product {
 //
 // Ordered most-specific first: a whole milk product carries both
 // "en:whole-milks" and the broader "en:dairies", and matching the
-// specific tag first avoids classifying it as something generic. Tags are
-// matched as substrings, so "milks" also catches "en:cow-milks".
+// specific tag first avoids classifying it as something generic. A
+// fragment matches whole hyphen-separated words of a tag, so "milks"
+// also catches "en:cow-milks" but "rices" doesn't catch "en:licorices".
 const TAG_TO_CATEGORY: [string, CategoryId][] = [
+  // Before 'butters', which would otherwise claim "en:peanut-butters".
+  ['peanut-butters', 'peanut_butter'],
   // Dairy
   ['butters', 'butter'],
   ['cheeses', 'cheese'],
@@ -74,7 +82,6 @@ const TAG_TO_CATEGORY: [string, CategoryId][] = [
   ['breakfast-cereals', 'cereal'],
   ['flours', 'flour'],
   ['sugars', 'sugar'],
-  ['peanut-butters', 'peanut_butter'],
   ['vegetable-oils', 'cooking_oil'],
   ['olive-oils', 'cooking_oil'],
   ['dried-beans', 'dried_beans'],
@@ -97,10 +104,14 @@ const TAG_TO_CATEGORY: [string, CategoryId][] = [
   ['waters', 'bottled_water'],
 ];
 
+const TAG_PATTERNS = TAG_TO_CATEGORY.map(
+  ([fragment, category]) => [new RegExp(`(^|[:-])${fragment}($|-)`), category] as const
+);
+
 export function deriveCategory(tags: string[] | undefined): CategoryId | null {
   if (!tags?.length) return null;
-  for (const [fragment, category] of TAG_TO_CATEGORY) {
-    if (tags.some((tag) => tag.includes(fragment))) return category;
+  for (const [pattern, category] of TAG_PATTERNS) {
+    if (tags.some((tag) => pattern.test(tag))) return category;
   }
   return null;
 }
@@ -108,6 +119,10 @@ export function deriveCategory(tags: string[] | undefined): CategoryId | null {
 interface OffProduct {
   code?: string;
   product_name?: string;
+  product_name_en?: string;
+  // The product's main language, e.g. "en", "fr".
+  lang?: string;
+  countries_tags?: string[];
   // The two endpoints disagree on this one: Search-a-licious returns an
   // array of brand names, the legacy endpoint a comma-separated string.
   brands?: string | string[];
@@ -125,9 +140,11 @@ function primaryBrand(brands: string | string[] | undefined): string | null {
   return first?.trim() || null;
 }
 
-function toProduct(raw: OffProduct): Product | null {
+// `name` is supplied by the caller: search results must have an English
+// name (see englishName), while a scanned barcode is accepted under any
+// name, since the user is holding the exact item.
+function toProduct(raw: OffProduct, name: string | null): Product | null {
   const barcode = raw.code;
-  const name = raw.product_name?.trim();
   if (!barcode || !name) return null;
 
   return {
@@ -140,11 +157,30 @@ function toProduct(raw: OffProduct): Product | null {
   };
 }
 
-const FIELDS = 'code,product_name,brands,quantity,image_small_url,categories_tags';
-const LEGACY_FIELDS = 'code,product_name,brands,quantity,image_front_small_url,categories_tags';
+const FIELDS =
+  'code,product_name,product_name_en,lang,countries_tags,brands,quantity,image_small_url,categories_tags';
+const LEGACY_FIELDS =
+  'code,product_name,product_name_en,lang,countries_tags,brands,quantity,image_front_small_url,categories_tags';
 
-function toProducts(raw: OffProduct[] | undefined): Product[] {
-  return (raw ?? []).map(toProduct).filter((product): product is Product => product !== null);
+// English-named products only, filtered down to what was actually
+// searched for and ranked — see utils/productSearch.ts.
+function toSearchResults(query: string, raw: OffProduct[] | undefined): Product[] {
+  const candidates = (raw ?? []).flatMap((item) => {
+    const product = toProduct(item, englishName(item));
+    if (!product) return [];
+    return [
+      {
+        product,
+        name: product.name,
+        brand: product.brand,
+        category: product.category,
+        countries: item.countries_tags ?? [],
+      },
+    ];
+  });
+  return filterAndRank(query, candidates, CATEGORIES)
+    .slice(0, SEARCH_RESULT_LIMIT)
+    .map((candidate) => candidate.product);
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {
@@ -154,7 +190,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
   try {
     const url =
       `${OFF_SEARCH_URL}?q=${encodeURIComponent(trimmed)}` +
-      `&page_size=${SEARCH_PAGE_SIZE}&fields=${FIELDS}`;
+      `&page_size=${SEARCH_FETCH_SIZE}&fields=${FIELDS}`;
     const response = await withTimeout(
       fetch(url, { headers: { 'User-Agent': USER_AGENT } }),
       REQUEST_TIMEOUT_MS
@@ -162,7 +198,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
     if (!response.ok) throw new Error(`Product search failed: HTTP ${response.status}`);
 
     const json = (await response.json()) as { hits?: OffProduct[] };
-    return toProducts(json.hits);
+    return toSearchResults(trimmed, json.hits);
   } catch (searchError) {
     console.warn(
       `[productService] primary search failed, trying legacy:`,
@@ -177,7 +213,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
 async function searchLegacy(trimmed: string): Promise<Product[]> {
   const url =
     `${OFF_LEGACY_SEARCH_URL}?search_terms=${encodeURIComponent(trimmed)}` +
-    `&search_simple=1&action=process&json=1&page_size=${SEARCH_PAGE_SIZE}&fields=${LEGACY_FIELDS}`;
+    `&search_simple=1&action=process&json=1&page_size=${SEARCH_FETCH_SIZE}&fields=${LEGACY_FIELDS}`;
 
   const response = await withTimeout(
     fetch(url, { headers: { 'User-Agent': USER_AGENT } }),
@@ -186,7 +222,7 @@ async function searchLegacy(trimmed: string): Promise<Product[]> {
   if (!response.ok) throw new Error(`Product search failed: HTTP ${response.status}`);
 
   const json = (await response.json()) as { products?: OffProduct[] };
-  return toProducts(json.products);
+  return toSearchResults(trimmed, json.products);
 }
 
 // Used by the barcode scanner. Returns null when the barcode isn't in the
@@ -202,5 +238,5 @@ export async function lookupBarcode(barcode: string): Promise<Product | null> {
 
   const json = (await response.json()) as { status?: number; product?: OffProduct };
   if (json.status !== 1 || !json.product) return null;
-  return toProduct(json.product);
+  return toProduct(json.product, englishName(json.product) ?? json.product.product_name?.trim() ?? null);
 }

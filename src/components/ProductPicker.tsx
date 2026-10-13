@@ -22,6 +22,9 @@ export default function ProductPicker({ selected, onSelect }: ProductPickerProps
   const styles = useStyles();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Product[]>([]);
+  // The query the current `results` answer — lets an empty result say
+  // "no matches" without flashing it while a new search is pending.
+  const [resultsFor, setResultsFor] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -46,7 +49,10 @@ export default function ProductPicker({ selected, onSelect }: ProductPickerProps
       setError('');
       searchProducts(query)
         .then((found) => {
-          if (searchIdRef.current === searchId) setResults(found);
+          if (searchIdRef.current === searchId) {
+            setResults(found);
+            setResultsFor(query);
+          }
         })
         .catch((searchError) => {
           console.warn(`[ProductPicker] search failed:`, searchError?.message ?? searchError);
@@ -153,6 +159,11 @@ export default function ProductPicker({ selected, onSelect }: ProductPickerProps
 
       {loading ? <ActivityIndicator color={colors.primary} style={styles.spinner} /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {!loading && !error && results.length === 0 && resultsFor && resultsFor === search.trim() ? (
+        <Text style={styles.noMatches}>
+          No matches for “{resultsFor}”. Try fewer words, or enter it manually below.
+        </Text>
+      ) : null}
 
       {results.map((product) => (
         <Pressable
@@ -237,6 +248,7 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   spinner: { marginVertical: spacing.sm },
   error: { fontSize: 13, color: colors.danger, marginBottom: spacing.sm, lineHeight: 18 },
+  noMatches: { fontSize: 13, color: colors.textMuted, marginBottom: spacing.sm, lineHeight: 18 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
