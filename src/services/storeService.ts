@@ -12,8 +12,16 @@ import { distanceInMiles, type LatLng } from '../utils/geo';
 // Overpass is a shared free service, so this is deliberately polite: one
 // request per store-picker open, a timeout, an identifying User-Agent,
 // and an in-memory cache keyed to a coarse location.
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const REQUEST_TIMEOUT_MS = 25000;
+//
+// The main instance is often overloaded and answers 504 under load, so a
+// lookup is retried once there and then falls back to a community mirror
+// (slower, but independent) before giving up.
+const OVERPASS_ATTEMPTS = [
+  { url: 'https://overpass-api.de/api/interpreter', timeoutMs: 15000 },
+  { url: 'https://overpass-api.de/api/interpreter', timeoutMs: 15000 },
+  { url: 'https://overpass.kumi.systems/api/interpreter', timeoutMs: 30000 },
+];
+const RETRY_DELAY_MS = 1500;
 // ~1.5 miles. Deliberately not larger: a wide search risks hitting the
 // result cap and dropping nearby stores. Overpass applies its
 // cap BEFORE any distance sorting, so an over-broad search could return
@@ -80,20 +88,7 @@ export async function findNearbyStores(origin: LatLng): Promise<NearbyStore[]> {
     nwr["amenity"~"^(fuel|pharmacy)$"](around:${around});
   );out center ${MAX_RESULTS};`;
 
-  const response = await withTimeout(
-    fetch(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'PriceWatch/1.0 (Congressional App Challenge student project)',
-      },
-      body: `data=${encodeURIComponent(overpassQuery)}`,
-    }),
-    REQUEST_TIMEOUT_MS
-  );
-
-  if (!response.ok) throw new Error(`Overpass request failed: HTTP ${response.status}`);
-  const json = (await response.json()) as { elements?: OverpassElement[] };
+  const json = await queryOverpass(overpassQuery);
 
   const stores: NearbyStore[] = (json.elements ?? [])
     .map((element): NearbyStore | null => {
@@ -111,8 +106,6 @@ export async function findNearbyStores(origin: LatLng): Promise<NearbyStore[]> {
         latitude,
         longitude,
         distanceMiles: distanceInMiles(origin, { latitude, longitude }),
-        // It's on the map, so its existence isn't taken on the
-        // reporter's word.
       };
     })
     .filter((store): store is NearbyStore => store !== null)
@@ -120,4 +113,35 @@ export async function findNearbyStores(origin: LatLng): Promise<NearbyStore[]> {
 
   cache.set(key, { fetchedAt: Date.now(), stores });
   return stores;
+}
+
+// Runs the query against each Overpass instance in turn until one
+// answers. Any failure — an HTTP error (Overpass signals overload with
+// 429/504), a timeout, or no network — moves on to the next attempt; only
+// the last error is surfaced.
+async function queryOverpass(overpassQuery: string): Promise<{ elements?: OverpassElement[] }> {
+  let lastError: unknown = null;
+  for (const [index, attempt] of OVERPASS_ATTEMPTS.entries()) {
+    if (index > 0) await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    try {
+      const response = await withTimeout(
+        fetch(attempt.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            // overpass-api.de refuses requests without an identifying
+            // User-Agent (HTTP 406).
+            'User-Agent': 'PriceWatch/1.0 (Congressional App Challenge student project)',
+          },
+          body: `data=${encodeURIComponent(overpassQuery)}`,
+        }),
+        attempt.timeoutMs
+      );
+      if (!response.ok) throw new Error(`Overpass request failed: HTTP ${response.status}`);
+      return (await response.json()) as { elements?: OverpassElement[] };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }

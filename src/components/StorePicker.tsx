@@ -27,6 +27,8 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
   const [search, setSearch] = useState('');
   const [manualName, setManualName] = useState('');
   const [addingManually, setAddingManually] = useState(false);
+  // Bumped by "Try again" to re-run the lookup for the same location.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!origin) return;
@@ -40,7 +42,11 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
       })
       .catch((lookupError) => {
         console.warn(`[StorePicker] store lookup failed:`, lookupError?.message ?? lookupError);
-        if (!cancelled) setError("Couldn't load nearby stores. Check your connection.");
+        if (!cancelled) {
+          setError(
+            "Couldn't load nearby stores — the store map service is busy. Try again, or enter your store below."
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -49,7 +55,7 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
     return () => {
       cancelled = true;
     };
-  }, [origin?.latitude, origin?.longitude]);
+  }, [origin?.latitude, origin?.longitude, attempt]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -67,16 +73,32 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
   }
 
   if (loading) {
-    return <ActivityIndicator color={colors.primary} style={styles.spinner} />;
-  }
-
-  if (error) {
-    return <Text style={styles.error}>{error}</Text>;
+    return (
+      <View>
+        <ActivityIndicator color={colors.primary} style={styles.spinner} />
+        <Text style={[styles.helper, styles.centered]}>Finding nearby stores…</Text>
+      </View>
+    );
   }
 
   return (
     <View>
-      {stores.length === 0 ? (
+      {/* A failed lookup must never block logging: the error sits above
+          the manual-entry option instead of replacing the whole step. */}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error}</Text>
+          <Pressable
+            onPress={() => {
+              haptics.tap();
+              setAttempt((n) => n + 1);
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.retryLink}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : stores.length === 0 ? (
         <Text style={styles.helper}>
           No mapped stores found nearby. Store data comes from OpenStreetMap, which is
           community-maintained, so smaller shops are sometimes missing — you can enter yours below.
@@ -175,8 +197,11 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
 const useStyles = makeStyles(({ colors }) => ({
   spinner: { marginVertical: spacing.md },
   hidden: { display: 'none' },
+  centered: { textAlign: 'center', marginTop: 0 },
   helper: { fontSize: 12, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 17 },
-  error: { fontSize: 13, color: colors.danger, marginVertical: spacing.sm },
+  error: { fontSize: 13, color: colors.danger, lineHeight: 18 },
+  errorBox: { marginVertical: spacing.sm, gap: spacing.xs },
+  retryLink: { fontSize: 13, color: colors.primary, fontWeight: '700' },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
