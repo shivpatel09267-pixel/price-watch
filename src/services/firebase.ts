@@ -21,8 +21,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // directly, e.g. in your team chat — they're not secret, but keeping them
 // out of source control makes it easy to point at a different Firebase
 // project later, e.g. for testing, without touching code).
-function requiredEnv(name: string): string {
-  const value = process.env[name];
+//
+// Each variable is referenced by its full literal name on purpose: Expo
+// inlines `process.env.EXPO_PUBLIC_*` into the bundle at build time only
+// when it can see the name written out. A dynamic `process.env[name]`
+// happens to work under the dev server but is empty in an exported
+// production build (e.g. the hosted web version).
+function requiredEnv(name: string, value: string | undefined): string {
   if (!value) {
     throw new Error(`Missing ${name}. Copy .env.example to .env and fill in your Firebase config.`);
   }
@@ -30,12 +35,24 @@ function requiredEnv(name: string): string {
 }
 
 const firebaseConfig = {
-  apiKey: requiredEnv('EXPO_PUBLIC_FIREBASE_API_KEY'),
-  authDomain: requiredEnv('EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN'),
-  projectId: requiredEnv('EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
-  storageBucket: requiredEnv('EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: requiredEnv('EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: requiredEnv('EXPO_PUBLIC_FIREBASE_APP_ID'),
+  apiKey: requiredEnv('EXPO_PUBLIC_FIREBASE_API_KEY', process.env.EXPO_PUBLIC_FIREBASE_API_KEY),
+  authDomain: requiredEnv(
+    'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
+    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+  ),
+  projectId: requiredEnv(
+    'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
+    process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID
+  ),
+  storageBucket: requiredEnv(
+    'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET',
+    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+  ),
+  messagingSenderId: requiredEnv(
+    'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+  ),
+  appId: requiredEnv('EXPO_PUBLIC_FIREBASE_APP_ID', process.env.EXPO_PUBLIC_FIREBASE_APP_ID),
 };
 
 // getApps()/getApp() guards against "Firebase App named '[DEFAULT]' already
