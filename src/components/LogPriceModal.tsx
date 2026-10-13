@@ -224,8 +224,8 @@ export default function LogPriceModal({ visible, onClose, onSubmitted }: LogPric
       const cheapest = await findCheapestNearby(target, entryOrigin).catch(
         (): CheapestNearbyResult => ({ results: [], matchedBy: 'none' })
       );
-      // The one moment worth a real notification buzz: the write landed.
-      haptics.success();
+      // The one moment worth a real celebration buzz: the write landed.
+      haptics.celebrate();
       onSubmitted({ productName: product.name, target, cheapest });
       onClose();
     } catch (submitError) {

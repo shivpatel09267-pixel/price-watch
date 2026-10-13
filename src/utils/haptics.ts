@@ -51,3 +51,13 @@ export function warning() {
 export function error() {
   fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
 }
+
+/**
+ * A price was logged — the success buzz followed by two firm thumps, so it
+ * feels like a small celebration rather than a routine confirmation.
+ */
+export function celebrate() {
+  fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
+  setTimeout(() => fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)), 180);
+  setTimeout(() => fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)), 320);
+}

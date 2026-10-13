@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LogPriceModal, { type LogPriceResult } from '../components/LogPriceModal';
 import FindCheapestModal from '../components/FindCheapestModal';
 import RecentEntryRow from '../components/RecentEntryRow';
+import Confetti from '../components/Confetti';
 import PrimaryButton from '../components/PrimaryButton';
 import { useAuth } from '../context/AuthContext';
 import { useRecentEntries } from '../hooks/useRecentEntries';
@@ -38,9 +39,11 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [findCheapestVisible, setFindCheapestVisible] = useState(false);
   const [successInfo, setSuccessInfo] = useState<LogPriceResult | null>(null);
+  const [confettiBurst, setConfettiBurst] = useState(0);
 
   function handleSubmitted(result: LogPriceResult) {
     setSuccessInfo(result);
+    setConfettiBurst((n) => n + 1);
     setTimeout(() => setSuccessInfo(null), 5000);
   }
 
@@ -141,6 +144,7 @@ export default function HomeScreen() {
           onClose={() => setFindCheapestVisible(false)}
         />
       </ScrollView>
+      <Confetti burstKey={confettiBurst} />
     </SafeAreaView>
   );
 }
