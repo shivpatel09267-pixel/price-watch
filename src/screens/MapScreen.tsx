@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Callout, Marker, type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,7 +10,8 @@ import { getDeviceCoordinates } from '../services/locationService';
 import * as Location from 'expo-location';
 import { CATEGORIES, getCategory, type CategoryId } from '../constants/categories';
 import { baseUnitLabel, getUnit } from '../constants/units';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import { formatRelativeTime } from '../utils/time';
 
 // Ultimate fallback if we can't get device location OR geocode the
@@ -25,6 +26,8 @@ const FALLBACK_REGION: Region = {
 };
 
 export default function MapScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { userProfile } = useAuth();
   const { entries, loading: entriesLoading } = useMapEntries();
   // The map itself stays edge-to-edge (no header, no SafeAreaView) since
@@ -198,7 +201,7 @@ export default function MapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { flex: 1 },
   map: { flex: 1 },
   loading: {
@@ -244,4 +247,4 @@ const styles = StyleSheet.create({
   },
   calloutTime: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   calloutUnverified: { fontSize: 11, color: colors.warning, marginTop: 2, fontWeight: '600' },
-});
+}));

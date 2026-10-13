@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ConfirmModal from './ConfirmModal';
 import { getCategory } from '../constants/categories';
 import { baseUnitLabel, getUnit } from '../constants/units';
-import { card, colors, radius, spacing, type } from '../constants/theme';
+import { radius, spacing, type } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import { deletePriceEntry } from '../services/priceEntryService';
 import { formatRelativeTime } from '../utils/time';
 import * as haptics from '../utils/haptics';
 import type { PriceEntry } from '../types';
 
 export default function RecentEntryRow({ entry }: { entry: PriceEntry }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   // Entries whose product had no recognisable category still have to
   // render — they just fall back to a neutral icon instead of a
   // category-coloured one.
@@ -108,7 +111,7 @@ export default function RecentEntryRow({ entry }: { entry: PriceEntry }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   wrapper: { marginBottom: spacing.sm },
   row: {
     ...card,
@@ -143,4 +146,4 @@ const styles = StyleSheet.create({
   },
   deleteButtonPressed: { backgroundColor: colors.dangerSoft },
   error: { ...type.caption, fontSize: 12, color: colors.danger, marginTop: spacing.xs },
-});
+}));

@@ -106,15 +106,7 @@ export async function logPriceEntry({
     nowMs: Date.now(),
   });
 
-  // A hand-typed store at coordinates with no mapped shop is the one
-  // path where the app has only the reporter's word that they were at a
-  // store at all. Such an entry is kept — it may well be a real shop the
-  // map is missing — but never counts as verified, so it stays out of
-  // local averages, the cheapest-nearby list, and other entries'
-  // corroboration. Enforced here rather than in the UI so it holds no
-  // matter which screen calls this.
-  const verified = store.locationCorroborated ? status.verified : false;
-  const flaggedOutlier = status.flaggedOutlier;
+  const { verified, flaggedOutlier } = status;
 
   await withTimeout(
     addDoc(collection(db, 'priceEntries'), {

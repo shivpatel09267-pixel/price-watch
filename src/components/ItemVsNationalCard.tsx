@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { getUnit, priceForAmount } from '../constants/units';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import type { NationalReference } from '../services/blsService';
 import type { PriceEntry } from '../types';
 
@@ -14,6 +15,8 @@ interface ItemVsNationalCardProps {
 // package the user bought is what makes the comparison land — a bare
 // "$2.40 per lb" doesn't tell you whether you overpaid at the register.
 export default function ItemVsNationalCard({ entry, national }: ItemVsNationalCardProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const unit = getUnit(entry.unitId);
   const sizeLabel = unit ? `${entry.amount} ${unit.label}` : `${entry.amount}`;
 
@@ -92,7 +95,7 @@ export default function ItemVsNationalCard({ entry, national }: ItemVsNationalCa
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -113,4 +116,4 @@ const styles = StyleSheet.create({
   colUnavailable: { fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 17 },
   verdict: { fontSize: 13, fontWeight: '600', marginTop: spacing.md },
   source: { fontSize: 11, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 15 },
-});
+}));

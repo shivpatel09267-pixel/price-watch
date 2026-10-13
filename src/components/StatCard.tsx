@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { card, colors, radius, spacing, type } from '../constants/theme';
+import { Text, View } from 'react-native';
+import { radius, spacing, type } from '../constants/theme';
+import { makeStyles } from '../context/ThemeContext';
 
 interface StatCardProps {
   label: string;
@@ -12,6 +13,7 @@ interface StatCardProps {
 }
 
 export default function StatCard({ label, value, unit, emptyText, reportCount }: StatCardProps) {
+  const styles = useStyles();
   const thin = reportCount !== undefined && reportCount < 3;
 
   return (
@@ -39,7 +41,7 @@ export default function StatCard({ label, value, unit, emptyText, reportCount }:
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   card: { ...card, flex: 1, padding: spacing.md },
   label: { ...type.overline, color: colors.textSubtle },
   value: { ...type.metric, color: colors.text, marginTop: spacing.sm },
@@ -56,4 +58,4 @@ const styles = StyleSheet.create({
   countText: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   countTextThin: { color: colors.warning },
   empty: { ...type.caption, color: colors.textSubtle, marginTop: spacing.sm },
-});
+}));

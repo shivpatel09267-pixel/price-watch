@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CATEGORIES, type CategoryDef, type CategoryId } from '../constants/categories';
 import { getRecentCategories } from '../utils/recentCategories';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 interface CategoryPickerProps {
@@ -17,6 +18,8 @@ interface CategoryPickerProps {
 // the items this person actually logs — which for most people is the same
 // handful every time.
 export default function CategoryPicker({ selected, onSelect }: CategoryPickerProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [search, setSearch] = useState('');
   const [recent, setRecent] = useState<CategoryDef[]>([]);
 
@@ -102,7 +105,7 @@ export default function CategoryPicker({ selected, onSelect }: CategoryPickerPro
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,4 +158,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: spacing.md,
   },
-});
+}));

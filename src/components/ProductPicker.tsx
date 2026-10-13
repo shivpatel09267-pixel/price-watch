@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { lookupBarcode, searchProducts, type Product } from '../services/productService';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 interface ProductPickerProps {
@@ -17,6 +18,8 @@ interface ProductPickerProps {
 const SEARCH_DEBOUNCE_MS = 500;
 
 export default function ProductPicker({ selected, onSelect }: ProductPickerProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -214,7 +217,7 @@ export default function ProductPicker({ selected, onSelect }: ProductPickerProps
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,4 +308,4 @@ const styles = StyleSheet.create({
   },
   manualDisabled: { opacity: 0.5 },
   manualButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
-});
+}));

@@ -14,9 +14,8 @@ import { distanceInMiles, type LatLng } from '../utils/geo';
 // and an in-memory cache keyed to a coarse location.
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const REQUEST_TIMEOUT_MS = 25000;
-// ~1.5 miles. Deliberately not larger: you can only log at a store within
-// MAX_LOG_DISTANCE_MILES (0.4 mi) anyway, so a wide search just risks
-// hitting the result cap and dropping nearby stores. Overpass applies its
+// ~1.5 miles. Deliberately not larger: a wide search risks hitting the
+// result cap and dropping nearby stores. Overpass applies its
 // cap BEFORE any distance sorting, so an over-broad search could return
 // 60 stores across town while omitting the Publix across the street.
 const SEARCH_RADIUS_METERS = 2500;
@@ -32,12 +31,6 @@ export interface NearbyStore {
   latitude: number;
   longitude: number;
   distanceMiles: number;
-  // Whether the app has independent evidence the reporter was at a real
-  // shop. Always true for a store picked from the map data. For a
-  // hand-typed store it's true only when some mapped store was within
-  // logging range — i.e. they're demonstrably at a retail location, just
-  // naming one the map doesn't know about. See StorePicker.
-  locationCorroborated: boolean;
 }
 
 interface OverpassElement {
@@ -120,7 +113,6 @@ export async function findNearbyStores(origin: LatLng): Promise<NearbyStore[]> {
         distanceMiles: distanceInMiles(origin, { latitude, longitude }),
         // It's on the map, so its existence isn't taken on the
         // reporter's word.
-        locationCorroborated: true,
       };
     })
     .filter((store): store is NearbyStore => store !== null)

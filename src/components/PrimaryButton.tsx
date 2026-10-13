@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, shadows, spacing, type } from '../constants/theme';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { radius, shadows, spacing, type } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 interface PrimaryButtonProps {
@@ -24,6 +25,8 @@ export default function PrimaryButton({
   variant = 'primary',
   icon,
 }: PrimaryButtonProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const isDisabled = Boolean(disabled || loading);
   const isSecondary = variant === 'secondary';
   const tint = isSecondary ? colors.text : colors.onPrimary;
@@ -87,7 +90,7 @@ export default function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -128,4 +131,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   chevrons: { marginRight: spacing.md, opacity: 0.85 },
-});
+}));

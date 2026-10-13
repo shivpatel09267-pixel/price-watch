@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -22,7 +21,8 @@ import { getDeviceCoordinates } from '../services/locationService';
 import type { Product } from '../services/productService';
 import { LOCAL_RADIUS_MILES, type LatLng } from '../utils/geo';
 import { baseUnitLabel, getUnit } from '../constants/units';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import { formatRelativeTime } from '../utils/time';
 
 interface FindCheapestModalProps {
@@ -47,6 +47,8 @@ function openInMaps(latitude: number, longitude: number, label?: string | null) 
 // "Find cheapest near me": pick an item, see every recent verified report
 // for it in your area, cheapest first, tappable through to Maps.
 export default function FindCheapestModal({ visible, onClose }: FindCheapestModalProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [product, setProduct] = useState<Product | null>(null);
   const [results, setResults] = useState<CheapestNearby[]>([]);
   const [matchedBy, setMatchedBy] = useState<CheapestNearbyResult['matchedBy']>('none');
@@ -222,7 +224,7 @@ export default function FindCheapestModal({ visible, onClose }: FindCheapestModa
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
@@ -270,4 +272,4 @@ const styles = StyleSheet.create({
   rowStore: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 },
   rowAddress: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   rowTime: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-});
+}));

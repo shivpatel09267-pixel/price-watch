@@ -1,11 +1,14 @@
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
-import { card, colors, spacing, type } from '../constants/theme';
+import { spacing, type } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 
 // Shown both on the Settings screen and at the top of the Dashboard, per
 // spec — both instances read/write the same shared SettingsContext state,
 // so toggling it in either place updates both immediately.
 export default function PriceContextToggle() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { showPriceContext, setShowPriceContext, loaded } = useSettings();
 
   return (
@@ -19,14 +22,14 @@ export default function PriceContextToggle() {
         onValueChange={setShowPriceContext}
         disabled={!loaded}
         trackColor={{ false: colors.surfaceRaised, true: colors.primary }}
-        thumbColor={colors.text}
+        thumbColor="#FFFFFF"
         ios_backgroundColor={colors.surfaceRaised}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   row: {
     ...card,
     flexDirection: 'row',
@@ -35,4 +38,4 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   label: { ...type.bodyStrong, color: colors.text },
-});
+}));

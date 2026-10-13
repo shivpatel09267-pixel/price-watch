@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PrimaryButton from '../components/PrimaryButton';
 import PriceContextToggle from '../components/PriceContextToggle';
+import ThemePicker from '../components/ThemePicker';
 import ConfirmModal from '../components/ConfirmModal';
 import { signOutUser } from '../services/authService';
 import { deleteAllPriceEntriesForUser } from '../services/priceEntryService';
 import { useAuth } from '../context/AuthContext';
-import { card, colors, spacing, type } from '../constants/theme';
+import { spacing, type } from '../constants/theme';
+import { makeStyles } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 export default function SettingsScreen() {
+  const styles = useStyles();
   const { user, userProfile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [confirmingWipe, setConfirmingWipe] = useState(false);
@@ -66,6 +69,10 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.toggleSpacing}>
+          <ThemePicker />
+        </View>
+
+        <View style={styles.toggleSpacing}>
           <PriceContextToggle />
         </View>
 
@@ -109,7 +116,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg, paddingBottom: spacing.xl },
   title: { ...type.display, color: colors.text, marginBottom: spacing.lg },
@@ -128,4 +135,4 @@ const styles = StyleSheet.create({
   dangerBody: { ...type.caption, color: colors.textMuted, lineHeight: 19, marginBottom: spacing.md },
   notice: { ...type.caption, color: colors.success, textAlign: 'center', marginTop: spacing.md },
   error: { ...type.caption, color: colors.danger, textAlign: 'center', marginTop: spacing.md },
-});
+}));

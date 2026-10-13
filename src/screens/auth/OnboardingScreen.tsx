@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthTextInput from '../../components/AuthTextInput';
 import PrimaryButton from '../../components/PrimaryButton';
 import { setUserZipCode } from '../../services/authService';
 import { isValidZipCode } from '../../utils/validation';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing } from '../../constants/theme';
+import { spacing } from '../../constants/theme';
+import { makeStyles } from '../../context/ThemeContext';
 
 // Shown exactly once, right after sign-up, to any signed-in user whose
 // Firestore profile doesn't have a zip code yet. Rendered directly by
 // RootNavigator (not part of AuthNavigator or the main tabs) since it's
 // neither "logged out" nor "fully set up".
 export default function OnboardingScreen() {
+  const styles = useStyles();
   const { user } = useAuth();
   const [zipCode, setZipCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +73,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, justifyContent: 'center', padding: spacing.lg },
   title: {
@@ -88,4 +90,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   error: { color: colors.danger, fontSize: 13, textAlign: 'center', marginBottom: spacing.md },
-});
+}));

@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { findNearbyStores, type NearbyStore } from '../services/storeService';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 import type { LatLng } from '../utils/geo';
 
-// How close you must actually be to a store to log a price there. This is
-// the app's main defence against made-up prices: you can't report what
-// Publix charges from your couch, you have to be standing in it. It can't
-// stop a determined faker (nothing client-side can), but it removes the
-// effortless kind.
-export const MAX_LOG_DISTANCE_MILES = 0.4;
+// Any listed store can be picked, however far away it is — there's no
+// "you must be standing in it" rule. Made-up prices are caught on the price
+// itself instead: the national-average bounds in utils/priceSanity.ts and
+// the outlier/corroboration check in services/dataQualityService.ts.
 
 interface StorePickerProps {
   origin: LatLng | null;
@@ -20,6 +19,8 @@ interface StorePickerProps {
 }
 
 export default function StorePicker({ origin, selected, onSelect }: StorePickerProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [stores, setStores] = useState<NearbyStore[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,19 +50,6 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
       cancelled = true;
     };
   }, [origin?.latitude, origin?.longitude]);
-
-  // Is the user demonstrably standing at a shop the map already knows
-  // about? This is what a hand-typed store name gets checked against.
-  //
-  // Without it, "enter it manually" is a hole straight through the
-  // proximity rule: anyone could sit at home, type "Publix", and log an
-  // invented price at their own coordinates. With it, a manual entry
-  // still requires being at a real retail location — you're only naming
-  // a shop OpenStreetMap is missing, not inventing your whereabouts.
-  const atMappedStore = useMemo(
-    () => stores.some((store) => store.distanceMiles <= MAX_LOG_DISTANCE_MILES),
-    [stores]
-  );
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -110,17 +98,14 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
 
       {filtered.slice(0, 15).map((store) => {
         const isSelected = selected?.id === store.id;
-        const tooFar = store.distanceMiles > MAX_LOG_DISTANCE_MILES;
         return (
           <Pressable
             key={store.id}
             onPress={() => {
-              if (tooFar) return;
               haptics.selection();
               onSelect(store);
             }}
-            disabled={tooFar}
-            style={[styles.row, isSelected && styles.rowSelected, tooFar && styles.rowDisabled]}
+            style={[styles.row, isSelected && styles.rowSelected]}
           >
             <MaterialCommunityIcons
               name={isSelected ? 'radiobox-marked' : 'radiobox-blank'}
@@ -133,11 +118,10 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
                 {store.branch ? ` — ${store.branch}` : ''}
               </Text>
               {store.address ? <Text style={styles.rowAddress}>{store.address}</Text> : null}
-              <Text style={tooFar ? styles.rowTooFar : styles.rowDistance}>
+              <Text style={styles.rowDistance}>
                 {store.distanceMiles < 0.1
                   ? 'You are here'
                   : `${store.distanceMiles.toFixed(1)} mi away`}
-                {tooFar ? ' · too far to log' : ''}
               </Text>
             </View>
           </Pressable>
@@ -155,15 +139,6 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
             placeholderTextColor={colors.textMuted}
             autoFocus
           />
-          {/* Said up front, not after the fact, so nobody is surprised
-              that their entry didn't count. */}
-          {!atMappedStore ? (
-            <Text style={styles.manualWarning}>
-              There's no shop mapped where you are, so this price will be saved but marked
-              unverified — it won't count toward local averages until someone at a mapped store
-              reports something similar.
-            </Text>
-          ) : null}
           <Pressable
             disabled={manualName.trim().length < 2}
             onPress={() => {
@@ -177,7 +152,6 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
                 latitude: origin.latitude,
                 longitude: origin.longitude,
                 distanceMiles: 0,
-                locationCorroborated: atMappedStore,
               });
               setAddingManually(false);
             }}
@@ -194,16 +168,11 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
           <Text style={styles.manualLink}>My store isn't listed — enter it manually</Text>
         </Pressable>
       )}
-
-      <Text style={styles.helper}>
-        You can only log a price at a store you're currently at — that's what keeps reported prices
-        trustworthy.
-      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   spinner: { marginVertical: spacing.md },
   hidden: { display: 'none' },
   helper: { fontSize: 12, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 17 },
@@ -237,12 +206,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   rowSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  rowDisabled: { opacity: 0.45 },
   rowDetails: { flex: 1 },
   rowName: { fontSize: 14, fontWeight: '600', color: colors.text },
   rowAddress: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   rowDistance: { fontSize: 12, color: colors.success, marginTop: 1, fontWeight: '600' },
-  rowTooFar: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   manualLink: {
     fontSize: 13,
     color: colors.primary,
@@ -258,7 +225,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   manualLabel: { fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: spacing.xs },
-  manualWarning: { fontSize: 12, color: colors.danger, lineHeight: 17, marginBottom: spacing.sm },
   manualInput: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -277,4 +243,4 @@ const styles = StyleSheet.create({
   },
   manualButtonDisabled: { opacity: 0.5 },
   manualButtonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
-});
+}));

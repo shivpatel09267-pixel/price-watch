@@ -1,9 +1,9 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import AuthNavigator from './AuthNavigator';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import MainTabNavigator from './MainTabNavigator';
-import { colors } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 
 // The top-level branch for the whole app, based purely on auth state:
 //   loading        -> spinner (covers both "checking persisted session"
@@ -12,6 +12,8 @@ import { colors } from '../constants/theme';
 //   no zip code    -> OnboardingScreen
 //   fully set up   -> MainTabNavigator
 export default function RootNavigator() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { user, userProfile, loading } = useAuth();
 
   if (loading) {
@@ -33,11 +35,11 @@ export default function RootNavigator() {
   return <MainTabNavigator />;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-});
+}));

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PrimaryButton from './PrimaryButton';
 import { CATEGORIES, type CategoryId } from '../constants/categories';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 
 interface MapFilterModalProps {
   visible: boolean;
@@ -22,6 +23,8 @@ export default function MapFilterModal({
   selected,
   onChange,
 }: MapFilterModalProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -99,7 +102,7 @@ export default function MapFilterModal({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
@@ -140,4 +143,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   rowLabel: { flex: 1, fontSize: 15, color: colors.text },
-});
+}));

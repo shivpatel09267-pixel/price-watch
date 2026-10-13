@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import RecentItemSwitcher from '../components/RecentItemSwitcher';
@@ -15,7 +15,8 @@ import { useCategoryStats, type PricePoint } from '../hooks/useCategoryStats';
 import { getDeviceCoordinates } from '../services/locationService';
 import { LOCAL_RADIUS_MILES, type LatLng } from '../utils/geo';
 import { baseUnitLabel } from '../constants/units';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import type { PriceEntry } from '../types';
 
 // How far back the item strip looks. Deliberately more than the handful
@@ -43,6 +44,8 @@ function buildChartLabels(entries: PricePoint[]): string[] {
 }
 
 export default function DashboardScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { user, userProfile } = useAuth();
   const { entries: recentEntries, loading: entriesLoading } = useRecentEntries(
     user?.uid,
@@ -187,7 +190,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, backgroundColor: colors.background, padding: spacing.lg },
   title: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
@@ -209,4 +212,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyChartText: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
-});
+}));

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -7,11 +7,13 @@ import AuthTextInput from '../../components/AuthTextInput';
 import PrimaryButton from '../../components/PrimaryButton';
 import { signUp } from '../../services/authService';
 import { getAuthErrorMessage, isValidEmail, isValidPassword } from '../../utils/validation';
-import { colors, spacing } from '../../constants/theme';
+import { spacing } from '../../constants/theme';
+import { makeStyles } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
 export default function SignUpScreen({ navigation }: Props) {
+  const styles = useStyles();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -80,7 +82,7 @@ export default function SignUpScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
   title: {
@@ -100,4 +102,4 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
   footerText: { color: colors.textMuted, fontSize: 14 },
   link: { color: colors.primary, fontSize: 14, fontWeight: '600' },
-});
+}));

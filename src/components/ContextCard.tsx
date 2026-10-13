@@ -1,10 +1,12 @@
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getCategory } from '../constants/categories';
 import type { ContextCardData } from '../constants/contextCards';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles } from '../context/ThemeContext';
 
 export default function ContextCard({ card }: { card: ContextCardData }) {
+  const styles = useStyles();
   const category = getCategory(card.category);
 
   return (
@@ -22,7 +24,7 @@ export default function ContextCard({ card }: { card: ContextCardData }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   card: {
     width: 260,
     backgroundColor: colors.surface,
@@ -41,4 +43,4 @@ const styles = StyleSheet.create({
   headline: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
   body: { fontSize: 13, color: colors.textMuted, marginBottom: spacing.sm },
   source: { fontSize: 12, color: colors.primary, fontWeight: '600' },
-});
+}));

@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -37,7 +36,8 @@ import { baseUnitLabel, parseQuantity, pricePerBaseUnit, UNITS } from '../consta
 import { useNationalAverages } from '../hooks/useNationalAverages';
 import { checkPriceAgainstNational } from '../utils/priceSanity';
 import { rememberCategory } from '../utils/recentCategories';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 export interface LogPriceResult {
@@ -76,6 +76,8 @@ function getSubmitErrorMessage(error: unknown): string {
 // compact row once it's answered, so the form never grows into a long
 // scroll no matter how many results a search returned.
 export default function LogPriceModal({ visible, onClose, onSubmitted }: LogPriceModalProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { user, userProfile } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   // Only used when the product carries no category of its own (manual
@@ -382,7 +384,7 @@ export default function LogPriceModal({ visible, onClose, onSubmitted }: LogPric
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
@@ -468,4 +470,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   submittingText: { color: colors.textMuted, fontSize: 14 },
-});
+}));

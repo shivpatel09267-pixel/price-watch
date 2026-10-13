@@ -1,7 +1,8 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PrimaryButton from './PrimaryButton';
-import { card, colors, radius, spacing, type } from '../constants/theme';
+import { radius, spacing, type } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 interface ConfirmModalProps {
@@ -34,6 +35,8 @@ export default function ConfirmModal({
   loading,
   destructive,
 }: ConfirmModalProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Modal
       visible={visible}
@@ -82,7 +85,7 @@ export default function ConfirmModal({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   overlay: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -115,4 +118,4 @@ const styles = StyleSheet.create({
   confirmPressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
   confirmDisabled: { opacity: 0.5 },
   confirmText: { ...type.bodyStrong, fontSize: 16, color: colors.onPrimary },
-});
+}));

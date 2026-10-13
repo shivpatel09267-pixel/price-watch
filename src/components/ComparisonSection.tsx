@@ -1,7 +1,8 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useNationalAverages } from '../hooks/useNationalAverages';
 import { baseUnitLabel, type UnitDimension } from '../constants/units';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import type { CategoryId } from '../constants/categories';
 
 interface ComparisonSectionProps {
@@ -26,6 +27,8 @@ export default function ComparisonSection({
   localAverage,
   dimension,
 }: ComparisonSectionProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { averages, loading, stale, error } = useNationalAverages();
   const published = averages[category];
   const trend = published?.kind === 'index_trend' ? published : undefined;
@@ -169,6 +172,7 @@ function BarRow({
   unitLabel: string;
   color: string;
 }) {
+  const styles = useStyles();
   const widthPercent = Math.max(4, (value / maxValue) * 100);
   return (
     <View style={styles.barRow}>
@@ -185,7 +189,7 @@ function BarRow({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   container: { marginTop: spacing.lg },
   title: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
   card: {
@@ -225,4 +229,4 @@ const styles = StyleSheet.create({
   barFill: { height: '100%', borderRadius: radius.full },
   comparison: { fontSize: 13, color: colors.text, fontWeight: '600', marginBottom: spacing.sm },
   source: { fontSize: 11, color: colors.textMuted, lineHeight: 15 },
-});
+}));

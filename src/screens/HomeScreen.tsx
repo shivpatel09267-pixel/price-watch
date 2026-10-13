@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LogPriceModal, { type LogPriceResult } from '../components/LogPriceModal';
@@ -8,7 +8,8 @@ import RecentEntryRow from '../components/RecentEntryRow';
 import PrimaryButton from '../components/PrimaryButton';
 import { useAuth } from '../context/AuthContext';
 import { useRecentEntries } from '../hooks/useRecentEntries';
-import { card, colors, radius, shadows, spacing, type } from '../constants/theme';
+import { radius, shadows, spacing, type } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 // Opens the device's own Maps app pinned at a point — used for "view the
@@ -30,6 +31,8 @@ function openInMaps(latitude: number, longitude: number, label?: string | null) 
 }
 
 export default function HomeScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { user } = useAuth();
   const { entries, loading } = useRecentEntries(user?.uid);
   const [modalVisible, setModalVisible] = useState(false);
@@ -142,7 +145,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, backgroundColor: colors.background, padding: spacing.lg },
   header: { marginBottom: spacing.lg },
@@ -185,4 +188,4 @@ const styles = StyleSheet.create({
   heroActions: { gap: spacing.sm },
   sectionTitle: { ...type.heading, color: colors.text, marginBottom: spacing.md },
   emptyText: { ...type.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg },
-});
+}));

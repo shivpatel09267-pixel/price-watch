@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,12 +8,15 @@ import AuthTextInput from '../../components/AuthTextInput';
 import PrimaryButton from '../../components/PrimaryButton';
 import { sendPasswordReset } from '../../services/authService';
 import { getAuthErrorMessage, isValidEmail } from '../../utils/validation';
-import { card, colors, radius, spacing, type } from '../../constants/theme';
+import { radius, spacing, type } from '../../constants/theme';
+import { makeStyles, useTheme } from '../../context/ThemeContext';
 import * as haptics from '../../utils/haptics';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -111,7 +114,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, card }) => ({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
   icon: {
@@ -151,4 +154,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   actions: { gap: spacing.sm, marginTop: spacing.sm },
-});
+}));

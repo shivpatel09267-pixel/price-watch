@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import ContextCard from './ContextCard';
 import { CONTEXT_CARDS } from '../constants/contextCards';
 import { useSettings } from '../context/SettingsContext';
-import { colors, spacing } from '../constants/theme';
+import { spacing } from '../constants/theme';
+import { makeStyles } from '../context/ThemeContext';
 import type { CategoryId } from '../constants/categories';
 
 interface ContextCardsSectionProps {
@@ -19,6 +20,7 @@ interface ContextCardsSectionProps {
 // possible to add the cards to a new screen later and forget to check
 // the setting.
 export default function ContextCardsSection({ highlight }: ContextCardsSectionProps) {
+  const styles = useStyles();
   const { showPriceContext, loaded } = useSettings();
 
   const cards = useMemo(() => {
@@ -48,8 +50,8 @@ export default function ContextCardsSection({ highlight }: ContextCardsSectionPr
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { marginTop: spacing.lg },
   title: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
   subtitle: { fontSize: 12, color: colors.textMuted, lineHeight: 17, marginBottom: spacing.sm },
-});
+}));

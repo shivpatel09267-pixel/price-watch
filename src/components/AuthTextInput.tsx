@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { colors, radius, spacing, type } from '../constants/theme';
+import { Text, TextInput, View, type TextInputProps } from 'react-native';
+import { radius, spacing, type } from '../constants/theme';
+import { makeStyles, useTheme } from '../context/ThemeContext';
 
 interface AuthTextInputProps extends TextInputProps {
   label: string;
@@ -15,6 +16,8 @@ export default function AuthTextInput({
   onBlur,
   ...rest
 }: AuthTextInputProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   // Focus is tracked locally so the field can show where the keyboard is
   // pointing. Without it, a form of identical dark boxes gives no
   // feedback at all on a phone, where there's no caret to spot.
@@ -50,7 +53,7 @@ export default function AuthTextInput({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { marginBottom: spacing.md },
   label: { ...type.caption, fontWeight: '600', color: colors.textMuted, marginBottom: spacing.sm },
   // The ring lives on a wrapper rather than the TextInput itself: growing
@@ -70,4 +73,4 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   errorText: { ...type.caption, fontSize: 12, color: colors.danger, marginTop: spacing.xs },
-});
+}));

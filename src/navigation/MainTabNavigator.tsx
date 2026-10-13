@@ -5,7 +5,8 @@ import HomeScreen from '../screens/HomeScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import MapScreen from '../screens/MapScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import { colors, spacing } from '../constants/theme';
+import { spacing } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 
 export type MainTabParamList = {
@@ -21,6 +22,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // and has completed onboarding. Each tab owns its own stack navigator
 // only if it later needs multi-screen flows (none do yet).
 export default function MainTabNavigator() {
+  const { colors } = useTheme();
   // The tab bar was sitting flush against the bottom edge, so on phones
   // with a home indicator or gesture bar the labels were half swallowed
   // by it. The navigator doesn't apply the safe-area inset to a custom

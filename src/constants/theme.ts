@@ -11,7 +11,7 @@ import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 // data colours here ("cheaper than average" vs "pricier"), and on a dark
 // background they're the only strong signal the eye has; spending green
 // on buttons too would blunt the one thing the app exists to say.
-export const colors = {
+export const darkColors = {
   primary: '#FF6A1A',
   primaryDark: '#E4550B',
   // Low-alpha accent wash for selected rows and chips. White-on-dark
@@ -46,6 +46,41 @@ export const colors = {
 
   overlay: 'rgba(0, 0, 0, 0.6)',
   // Pure white on the orange fill clears 4.5:1; near-black does not.
+  onPrimary: '#FFFFFF',
+};
+
+export type ColorPalette = typeof darkColors;
+
+// Light counterpart to darkColors — same keys, same roles. On a light
+// ground drop shadows work again, so the greys can sit further apart, and
+// the accent and data colours are darkened so small text on white still
+// clears contrast.
+export const lightColors: ColorPalette = {
+  primary: '#E8590C',
+  primaryDark: '#C2410C',
+  primarySoft: 'rgba(232, 89, 12, 0.10)',
+  primaryBorder: 'rgba(232, 89, 12, 0.40)',
+
+  background: '#F4F4F6',
+  surface: '#FFFFFF',
+  surfaceAlt: '#EDEDF0',
+  surfaceRaised: '#E2E2E7',
+
+  text: '#141416',
+  textMuted: '#5E5E66',
+  textSubtle: '#8A8A93',
+
+  border: 'rgba(0, 0, 0, 0.08)',
+  borderStrong: 'rgba(0, 0, 0, 0.16)',
+
+  success: '#15803D',
+  successSoft: 'rgba(21, 128, 61, 0.10)',
+  danger: '#DC2626',
+  dangerSoft: 'rgba(220, 38, 38, 0.10)',
+  warning: '#B45309',
+  warningSoft: 'rgba(180, 83, 9, 0.12)',
+
+  overlay: 'rgba(0, 0, 0, 0.4)',
   onPrimary: '#FFFFFF',
 };
 
@@ -121,9 +156,11 @@ export const shadows = {
 
 // Every card in the app is this: raised surface + hairline + big radius.
 // Spelled once so screens stop re-deriving it slightly differently.
-export const card: ViewStyle = {
-  backgroundColor: colors.surface,
-  borderRadius: radius.lg,
-  borderWidth: 1,
-  borderColor: colors.border,
-};
+export function makeCard(colors: ColorPalette): ViewStyle {
+  return {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  };
+}

@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { getUnit } from '../constants/units';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing } from '../constants/theme';
+import { makeStyles } from '../context/ThemeContext';
 import * as haptics from '../utils/haptics';
 import type { PriceEntry } from '../types';
 
@@ -20,6 +21,7 @@ export default function RecentItemSwitcher({
   selectedId,
   onSelect,
 }: RecentItemSwitcherProps) {
+  const styles = useStyles();
   if (items.length === 0) return null;
 
   return (
@@ -55,7 +57,7 @@ export default function RecentItemSwitcher({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   strip: { gap: spacing.sm, paddingRight: spacing.lg, paddingBottom: spacing.xs },
   pill: {
     maxWidth: 190,
@@ -71,4 +73,4 @@ const styles = StyleSheet.create({
   nameActive: { color: colors.onPrimary },
   meta: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
   metaActive: { color: colors.primaryBorder },
-});
+}));
