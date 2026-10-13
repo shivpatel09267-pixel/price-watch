@@ -2,6 +2,8 @@
 
 A crowdsourced cost-of-living tracking app built for the Congressional App Challenge (FL-15). Users log real-world prices they see for gas and common grocery staples, tagged with location and time — individually a personal price tracker, collectively a live local price index.
 
+**Team:** Shiv Patel, Jorge Dominguez, Sagnik Kundu
+
 **Try it live:** https://price-watch-a3689.web.app — opens in any phone or desktop browser, no install needed. Sign up with any email to get started. (The web version has everything except the interactive map and vibration feedback, which need the phone app.)
 
 ## What it does
