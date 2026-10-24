@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ConfirmModal from './ConfirmModal';
+import EditEntryModal from './EditEntryModal';
 import { getCategory } from '../constants/categories';
 import { baseUnitLabel, getUnit } from '../constants/units';
 import { radius, spacing, type } from '../constants/theme';
@@ -23,6 +24,7 @@ export default function RecentEntryRow({ entry }: { entry: PriceEntry }) {
   const unit = getUnit(entry.unitId);
   const size = unit ? `${entry.amount} ${unit.label}` : null;
 
+  const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -79,6 +81,18 @@ export default function RecentEntryRow({ entry }: { entry: PriceEntry }) {
         <Pressable
           onPress={() => {
             haptics.tap();
+            setEditing(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${entry.productName} entry`}
+          hitSlop={10}
+          style={({ pressed }) => [styles.actionButton, pressed && styles.editButtonPressed]}
+        >
+          <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.textSubtle} />
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            haptics.tap();
             setConfirming(true);
           }}
           accessibilityRole="button"
@@ -86,13 +100,15 @@ export default function RecentEntryRow({ entry }: { entry: PriceEntry }) {
           // The icon itself is small; hitSlop gives it a real 44pt target
           // without making the button look heavy next to the price.
           hitSlop={10}
-          style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+          style={({ pressed }) => [styles.actionButton, pressed && styles.deleteButtonPressed]}
         >
           <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.textSubtle} />
         </Pressable>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <EditEntryModal entry={entry} visible={editing} onClose={() => setEditing(false)} />
 
       <ConfirmModal
         visible={confirming}
@@ -136,7 +152,7 @@ const useStyles = makeStyles(({ colors, card }) => ({
   priceColumn: { alignItems: 'flex-end', marginLeft: spacing.sm },
   price: { fontSize: 16, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
   perBase: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  deleteButton: {
+  actionButton: {
     width: 34,
     height: 34,
     borderRadius: radius.full,
@@ -144,6 +160,7 @@ const useStyles = makeStyles(({ colors, card }) => ({
     justifyContent: 'center',
     marginLeft: spacing.xs,
   },
+  editButtonPressed: { backgroundColor: colors.primarySoft },
   deleteButtonPressed: { backgroundColor: colors.dangerSoft },
   error: { ...type.caption, fontSize: 12, color: colors.danger, marginTop: spacing.xs },
 }));

@@ -190,15 +190,25 @@ service cloud.firestore {
                     // lookback window forever and always sorts as newest.
                     && request.resource.data.timestamp == request.time;
 
-      // No edit path exists in the app — entries are created and deleted,
-      // never modified (see priceEntryService.ts). The previous update
-      // rule only pinned userId/verified/flaggedOutlier and left price,
-      // pricePerBase, coordinates and productName wide open, which made
-      // every check above bypassable with a single follow-up write.
-      // Closing it entirely is both the accurate description of the app
-      // and the tighter rule. Re-open it with validEntry() applied if an
-      // edit feature is ever added.
-      allow update: if false;
+      // Edits (updatePriceEntry in priceEntryService.ts) fix what was
+      // paid, how much and where — never who logged it, what was bought,
+      // or when. An earlier update rule only pinned userId/verified/
+      // flaggedOutlier and left price, pricePerBase and coordinates wide
+      // open, which made every check above bypassable with one follow-up
+      // write; this one runs the full validEntry() on the result, so an
+      // edited entry has to pass everything a new one does.
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == resource.data.userId
+                    // Keeping the original timestamp stops an edit from
+                    // re-dating an entry back into the lookback window.
+                    && request.resource.data.timestamp == resource.data.timestamp
+                    && request.resource.data.productName == resource.data.productName
+                    && request.resource.data.get('brand', null) == resource.data.get('brand', null)
+                    && request.resource.data.get('barcode', null) == resource.data.get('barcode', null)
+                    && request.resource.data.get('category', null) == resource.data.get('category', null)
+                    && request.resource.data.zipCode == resource.data.zipCode
+                    && validEntry(request.resource.data);
 
       allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }

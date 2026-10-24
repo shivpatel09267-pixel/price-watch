@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   limit,
@@ -9,6 +10,7 @@ import {
   query,
   serverTimestamp,
   Timestamp,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -355,6 +357,56 @@ export async function findCheapestNearby(
 ): Promise<CheapestNearbyResult> {
   const { results, matchedBy } = await findCheapestNearbyList(target, origin);
   return { results: results.slice(0, 1), matchedBy };
+}
+
+export interface EditPriceParams {
+  price: number;
+  amount: number;
+  unitId: string;
+  store: NearbyStore;
+}
+
+// Fixes a logged price in place — what was paid, for how much, and where.
+// What was bought stays as logged (firestore.rules enforces that, along
+// with the owner and original timestamp), so an edit corrects an entry
+// rather than turning it into a different one.
+//
+// Everything derived from the edited fields is recomputed exactly as a
+// new entry would be: the normalised price, the pinned location, and the
+// verification status, so editing can't sneak an outlier past the checks.
+export async function updatePriceEntry(
+  entry: PriceEntry,
+  { price, amount, unitId, store }: EditPriceParams
+): Promise<void> {
+  const { latitude, longitude, address } = pinnedLocation(store);
+  const normalised = pricePerBaseUnit(price, amount, unitId);
+  const { verified, flaggedOutlier } = await computeVerificationStatus({
+    category: entry.category,
+    zipCode: entry.zipCode,
+    pricePerBase: normalised?.pricePerBase ?? null,
+    nowMs: Date.now(),
+  });
+
+  await withTimeout(
+    updateDoc(doc(db, 'priceEntries', entry.id), {
+      price,
+      amount,
+      unitId,
+      // Optional fields the edit no longer has are removed rather than
+      // left holding the previous value.
+      pricePerBase: normalised ? normalised.pricePerBase : deleteField(),
+      dimension: normalised ? normalised.dimension : deleteField(),
+      latitude,
+      longitude,
+      address: address ?? deleteField(),
+      storeName: store.name,
+      storeId: store.id,
+      storeBranch: store.branch ?? deleteField(),
+      verified,
+      flaggedOutlier: flaggedOutlier ? true : deleteField(),
+    }),
+    FIRESTORE_TIMEOUT_MS
+  );
 }
 
 // Deleting is owner-only, enforced in firestore.rules:
