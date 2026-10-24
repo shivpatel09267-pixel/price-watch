@@ -206,11 +206,14 @@ const photonSource: StoreSource = async (origin, signal) => {
     `${PHOTON_URL}?${params.join('&')}`,
     { headers: { 'User-Agent': USER_AGENT }, signal }
   );
+  return parsePhotonFeatures(json.features);
+};
 
+function parsePhotonFeatures(features: PhotonFeature[] | undefined): FoundStore[] {
   // Photon uses N/W/R; spelled out to match the ids Overpass produces, so
   // the same store gets the same id whichever source found it.
   const osmTypes: Record<string, string> = { N: 'node', W: 'way', R: 'relation' };
-  return (json.features ?? [])
+  return (features ?? [])
     .map((feature): FoundStore | null => {
       const [longitude, latitude] = feature.geometry?.coordinates ?? [];
       const props = feature.properties ?? {};
@@ -228,7 +231,41 @@ const photonSource: StoreSource = async (origin, signal) => {
       };
     })
     .filter((store): store is FoundStore => store !== null);
-};
+}
+
+const PHOTON_SEARCH_URL = 'https://photon.komoot.io/api';
+const STORE_SEARCH_TIMEOUT_MS = 10000;
+
+// Finds stores by name anywhere — "costco" finds every Costco, not just
+// ones within the nearby-store radius — listed nearest first.
+//
+// Photon is asked to favour results near the user (lat/lon with a strong
+// location bias), so its 50-result cap is spent on the closest matches
+// rather than famous ones across the country. Any kind of shop counts
+// here, plus pharmacies and gas stations, since someone searching by name
+// already knows which store they mean.
+export async function searchStores(text: string, origin: LatLng): Promise<NearbyStore[]> {
+  const params = [
+    `q=${encodeURIComponent(text)}`,
+    `lat=${origin.latitude}`,
+    `lon=${origin.longitude}`,
+    'location_bias_scale=0.1',
+    `limit=${PHOTON_MAX_RESULTS}`,
+    'osm_tag=shop',
+    ...AMENITY_TAGS.map((tag) => `osm_tag=${encodeURIComponent(`amenity:${tag}`)}`),
+  ];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), STORE_SEARCH_TIMEOUT_MS);
+  try {
+    const json = await fetchJson<{ features?: PhotonFeature[] }>(
+      `${PHOTON_SEARCH_URL}?${params.join('&')}`,
+      { headers: { 'User-Agent': USER_AGENT }, signal: controller.signal }
+    );
+    return measureFrom(origin, parsePhotonFeatures(json.features));
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function overpassSource(url: string): StoreSource {
   return async (origin, signal) => {

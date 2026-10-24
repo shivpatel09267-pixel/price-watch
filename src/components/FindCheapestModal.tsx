@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -7,18 +7,17 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import ProductPicker from './ProductPicker';
 import {
-  findCheapestNearbyList,
+  fetchRecentNearbyReports,
+  searchReports,
   type CheapestNearby,
-  type CheapestNearbyResult,
 } from '../services/priceEntryService';
 import { getDeviceCoordinates } from '../services/locationService';
-import type { Product } from '../services/productService';
 import { LOCAL_RADIUS_MILES, type LatLng } from '../utils/geo';
 import { baseUnitLabel, getUnit } from '../constants/units';
 import { radius, spacing } from '../constants/theme';
@@ -44,17 +43,22 @@ function openInMaps(latitude: number, longitude: number, label?: string | null) 
   });
 }
 
-// "Find cheapest near me": pick an item, see every recent verified report
-// for it in your area, cheapest first, tappable through to Maps.
+// Results never list more than this; the cheapest are what matter.
+const MAX_SHOWN = 30;
+
+// "Find cheapest near me": type what you're looking for and see every
+// recent verified report in your area that matches those words, cheapest
+// first, tappable through to Maps. No exact product has to be picked —
+// "milk" finds every milk anyone nearby has logged.
 export default function FindCheapestModal({ visible, onClose }: FindCheapestModalProps) {
   const { colors } = useTheme();
   const styles = useStyles();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [results, setResults] = useState<CheapestNearby[]>([]);
-  const [matchedBy, setMatchedBy] = useState<CheapestNearbyResult['matchedBy']>('none');
+  const [search, setSearch] = useState('');
+  const [reports, setReports] = useState<CheapestNearby[] | null>(null);
   const [origin, setOrigin] = useState<LatLng | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Bumped by "Try again" to reload the reports.
+  const [attempt, setAttempt] = useState(0);
 
   // Results are a 20-mile radius around where you actually are, so this
   // needs coordinates rather than the profile zip code.
@@ -62,62 +66,51 @@ export default function FindCheapestModal({ visible, onClose }: FindCheapestModa
     if (!visible) return;
     let cancelled = false;
     getDeviceCoordinates().then((coords) => {
-      if (!cancelled && coords) {
+      if (cancelled) return;
+      if (coords) {
         setOrigin({ latitude: coords.latitude, longitude: coords.longitude });
+      } else {
+        setError("Couldn't get your location. Allow location access to find prices near you.");
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [visible]);
+  }, [visible, attempt]);
 
-  // Reset each time it opens so it never shows the previous search.
+  // Reset each time it opens so it never shows the previous search, and
+  // reloads the reports so they're never stale.
   useEffect(() => {
     if (visible) {
-      setProduct(null);
-      setResults([]);
-      setMatchedBy('none');
+      setSearch('');
+      setReports(null);
       setError('');
-      setLoading(false);
     }
   }, [visible]);
 
-  const barcode = product && !product.barcode.startsWith('manual/') ? product.barcode : null;
-  const category = product?.category ?? null;
-
+  // Recent nearby reports are loaded once per open; typing then filters
+  // them on the device, so results update instantly with each keystroke.
   useEffect(() => {
-    if (!product || !origin) return;
-    // A manually-typed item with no category has nothing to match on —
-    // there's no shared key linking it to anyone else's entry.
-    if (!barcode && !category) {
-      setResults([]);
-      setMatchedBy('none');
-      return;
-    }
-
+    if (!visible || !origin) return;
     let cancelled = false;
-    setLoading(true);
-    setError('');
 
-    findCheapestNearbyList({ barcode, category, productName: product.name }, origin)
+    fetchRecentNearbyReports(origin)
       .then((found) => {
-        if (cancelled) return;
-        setResults(found.results);
-        setMatchedBy(found.matchedBy);
+        if (!cancelled) setReports(found);
       })
       .catch((lookupError) => {
         console.warn(`[FindCheapestModal] lookup failed:`, lookupError?.message ?? lookupError);
         if (!cancelled)
           setError("Couldn't load nearby prices. Check your connection and try again.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [barcode, category, origin?.latitude, origin?.longitude]);
+  }, [visible, origin?.latitude, origin?.longitude, attempt]);
+
+  const query = search.trim();
+  const results = useMemo(() => searchReports(reports ?? [], query), [reports, query]);
 
   return (
     <Modal
@@ -136,35 +129,50 @@ export default function FindCheapestModal({ visible, onClose }: FindCheapestModa
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.stepLabel}>Which item are you looking for?</Text>
-          <ProductPicker
-            selected={product}
-            onSelect={(selected) => setProduct(selected.name ? selected : null)}
-          />
+          <View style={styles.searchRow}>
+            <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="e.g. milk, eggs, Publix bread"
+              placeholderTextColor={colors.textMuted}
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {search ? (
+              <Pressable onPress={() => setSearch('')} hitSlop={10}>
+                <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
 
-          {product ? (
+          {query ? (
             <View style={styles.results}>
               <Text style={styles.stepLabel}>Cheapest within {LOCAL_RADIUS_MILES} miles</Text>
-              {/* Says plainly whether these are prices for the exact
-                  product or for comparable items of the same kind —
-                  the fallback is useful, but it isn't the same claim. */}
-              {matchedBy === 'category' ? (
-                <Text style={styles.matchNote}>
-                  Nobody nearby has logged this exact product yet — showing comparable items
-                  instead.
-                </Text>
-              ) : null}
 
-              {loading ? (
+              {error ? (
+                <View>
+                  <Text style={styles.error}>{error}</Text>
+                  <Pressable
+                    onPress={() => {
+                      setError('');
+                      setAttempt((n) => n + 1);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.retryLink}>Try again</Text>
+                  </Pressable>
+                </View>
+              ) : reports === null ? (
                 <ActivityIndicator color={colors.primary} style={styles.spinner} />
-              ) : error ? (
-                <Text style={styles.error}>{error}</Text>
               ) : results.length === 0 ? (
                 <Text style={styles.empty}>
-                  No verified reports for this item within {LOCAL_RADIUS_MILES} miles in the last 7
-                  days. Log one and it'll show up here.
+                  No verified reports matching “{query}” within {LOCAL_RADIUS_MILES} miles in the
+                  last 7 days. Try fewer or different words, or log one and it&apos;ll show up here.
                 </Text>
               ) : (
-                results.map((result, index) => (
+                results.slice(0, MAX_SHOWN).map((result, index) => (
                   <Pressable
                     key={result.id}
                     style={styles.row}
@@ -237,9 +245,21 @@ const useStyles = makeStyles(({ colors }) => ({
   title: { fontSize: 18, fontWeight: '700', color: colors.text },
   content: { padding: spacing.lg },
   stepLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: spacing.sm },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+  },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: spacing.sm },
   results: { marginTop: spacing.lg },
   spinner: { marginTop: spacing.md },
   error: { color: colors.danger, fontSize: 13 },
+  retryLink: { fontSize: 13, color: colors.primary, fontWeight: '700', marginTop: spacing.xs },
   empty: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   row: {
     flexDirection: 'row',
@@ -268,7 +288,6 @@ const useStyles = makeStyles(({ colors }) => ({
   rowUnit: { fontSize: 12, fontWeight: '400', color: colors.textMuted },
   rowProduct: { fontSize: 13, color: colors.text, marginTop: 1 },
   rowPerBase: { fontSize: 12, fontWeight: '600', color: colors.primary, marginTop: 1 },
-  matchNote: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.sm, lineHeight: 17 },
   rowStore: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 },
   rowAddress: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   rowTime: { fontSize: 12, color: colors.textMuted, marginTop: 2 },

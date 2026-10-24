@@ -5,6 +5,7 @@ import {
   doc,
   getDocs,
   limit,
+  orderBy,
   query,
   serverTimestamp,
   Timestamp,
@@ -17,7 +18,7 @@ import { computeVerificationStatus } from './dataQualityService';
 import { withTimeout } from '../utils/async';
 import { distanceInMiles, LOCAL_RADIUS_MILES, type LatLng } from '../utils/geo';
 import { pricePerBaseUnit, type UnitDimension } from '../constants/units';
-import type { CategoryId } from '../constants/categories';
+import { getCategory, type CategoryId } from '../constants/categories';
 import type { NearbyStore } from './storeService';
 import type { PriceEntry } from '../types';
 
@@ -176,6 +177,7 @@ export interface CheapestNearby {
   id: string;
   productName: string;
   brand: string | null;
+  category: CategoryId | null;
   price: number;
   amount: number;
   unitId: string;
@@ -222,6 +224,7 @@ function toCheapestNearby(
     id: doc.id,
     productName: (data.productName as string | undefined) ?? 'Unknown item',
     brand: (data.brand as string | undefined) ?? null,
+    category: (data.category as CategoryId | undefined) ?? null,
     price: data.price as number,
     amount: (data.amount as number | undefined) ?? 1,
     unitId: (data.unitId as string | undefined) ?? 'each',
@@ -253,16 +256,74 @@ async function queryCheapest(
 
   const snapshot = await withTimeout(getDocs(cheapestQuery), FIRESTORE_TIMEOUT_MS);
 
-  return (
-    snapshot.docs
-      .map((doc) => toCheapestNearby(doc, origin))
-      .filter((entry) => entry.distanceMiles <= LOCAL_RADIUS_MILES)
-      // Ranks on the NORMALISED price where available, so a 2 lb bag
-      // genuinely beats a 1 lb bag at the same total price rather than
-      // looking worse. Sorting happens client-side because Firestore won't
-      // order by one field while range-filtering on another.
-      .sort((a, b) => (a.pricePerBase ?? a.price) - (b.pricePerBase ?? b.price))
+  return snapshot.docs
+    .map((doc) => toCheapestNearby(doc, origin))
+    .filter((entry) => entry.distanceMiles <= LOCAL_RADIUS_MILES)
+    .sort(byCheapest);
+}
+
+// Ranks on the NORMALISED price where available, so a 2 lb bag genuinely
+// beats a 1 lb bag at the same total price rather than looking worse.
+// Sorting happens client-side because Firestore won't order by one field
+// while range-filtering on another.
+function byCheapest(a: CheapestNearby, b: CheapestNearby): number {
+  return (a.pricePerBase ?? a.price) - (b.pricePerBase ?? b.price);
+}
+
+// How many recent reports a keyword search loads. Firestore has no
+// full-text search, so matching happens on the device; this caps the read.
+const KEYWORD_SEARCH_LIMIT = 500;
+
+// Every recent verified report near the user, loaded once so a keyword
+// search can filter it instantly on each keystroke.
+//
+// Only the timestamp is filtered and ordered on the server (newest first),
+// which the automatic single-field index covers; `verified` and distance
+// are checked here rather than needing another composite index.
+export async function fetchRecentNearbyReports(origin: LatLng): Promise<CheapestNearby[]> {
+  const since = Timestamp.fromMillis(Date.now() - CHEAPEST_LOOKBACK_MS);
+  const recentQuery = query(
+    collection(db, 'priceEntries'),
+    where('timestamp', '>=', since),
+    orderBy('timestamp', 'desc'),
+    limit(KEYWORD_SEARCH_LIMIT)
   );
+  const snapshot = await withTimeout(getDocs(recentQuery), FIRESTORE_TIMEOUT_MS);
+  return snapshot.docs
+    .filter((doc) => doc.data().verified === true)
+    .map((doc) => toCheapestNearby(doc, origin))
+    .filter((entry) => entry.distanceMiles <= LOCAL_RADIUS_MILES);
+}
+
+// Plural-tolerant word: "eggs" matches "egg", "apples" matches "apple".
+function keywordStem(word: string): string {
+  return word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word;
+}
+
+// Reports matching every word typed, cheapest first. A word can match the
+// product name, brand, store or category, so "milk", "publix milk" and
+// "great value" all work without picking an exact product.
+export function searchReports(reports: CheapestNearby[], text: string): CheapestNearby[] {
+  const words = text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map(keywordStem);
+  if (words.length === 0) return [];
+  return reports
+    .filter((report) => {
+      const searchable = [
+        report.productName,
+        report.brand,
+        report.storeName,
+        report.category ? getCategory(report.category).label : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return words.every((word) => searchable.includes(word));
+    })
+    .sort(byCheapest);
 }
 
 // Recent verified reports for one item near the user, cheapest first.
@@ -295,7 +356,6 @@ export async function findCheapestNearby(
   const { results, matchedBy } = await findCheapestNearbyList(target, origin);
   return { results: results.slice(0, 1), matchedBy };
 }
-
 
 // Deleting is owner-only, enforced in firestore.rules:
 //   allow delete: if request.auth.uid == resource.data.userId
