@@ -72,20 +72,17 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
     return <Text style={styles.helper}>Getting your location…</Text>;
   }
 
-  if (loading) {
-    return (
-      <View>
-        <ActivityIndicator color={colors.primary} style={styles.spinner} />
-        <Text style={[styles.helper, styles.centered]}>Finding nearby stores…</Text>
-      </View>
-    );
-  }
-
   return (
     <View>
-      {/* A failed lookup must never block logging: the error sits above
-          the manual-entry option instead of replacing the whole step. */}
-      {error ? (
+      {/* A slow or failed lookup must never block logging: the spinner and
+          the error sit above the manual-entry option instead of replacing
+          the whole step. */}
+      {loading ? (
+        <View>
+          <ActivityIndicator color={colors.primary} style={styles.spinner} />
+          <Text style={[styles.helper, styles.centered]}>Finding nearby stores…</Text>
+        </View>
+      ) : error ? (
         <View style={styles.errorBox}>
           <Text style={styles.error}>{error}</Text>
           <Pressable
@@ -105,7 +102,7 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
         </Text>
       ) : null}
 
-      <View style={stores.length === 0 ? styles.hidden : styles.searchRow}>
+      <View style={loading || stores.length === 0 ? styles.hidden : styles.searchRow}>
         <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
         <TextInput
           style={styles.searchInput}
@@ -118,7 +115,7 @@ export default function StorePicker({ origin, selected, onSelect }: StorePickerP
         />
       </View>
 
-      {filtered.slice(0, 15).map((store) => {
+      {(loading ? [] : filtered.slice(0, 15)).map((store) => {
         const isSelected = selected?.id === store.id;
         return (
           <Pressable
