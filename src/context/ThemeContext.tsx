@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, useColorScheme, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  useColorScheme,
+  type ImageStyle,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { darkColors, lightColors, makeCard, type ColorPalette } from '../constants/theme';
 
@@ -72,9 +78,10 @@ export function useTheme(): ThemeContextValue {
 // Declares a component's styles as a function of the theme and returns a
 // hook that hands back the right set. Each scheme's StyleSheet is built
 // once, on first use, so switching themes never rebuilds styles per render.
-export function makeStyles<T extends StyleSheet.NamedStyles<T>>(
-  factory: (theme: AppTheme) => T
-): () => T {
+// React Native 0.88 dropped the public StyleSheet.NamedStyles type; this is its equivalent.
+type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
+
+export function makeStyles<T extends NamedStyles<T>>(factory: (theme: AppTheme) => T): () => T {
   const cache: Partial<Record<ColorScheme, T>> = {};
   return function useStyles() {
     const { scheme } = useTheme();
