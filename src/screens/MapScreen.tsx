@@ -26,7 +26,7 @@ const FALLBACK_REGION: Region = {
 };
 
 export default function MapScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const styles = useStyles();
   const { userProfile } = useAuth();
   const { entries, loading: entriesLoading } = useMapEntries();
@@ -112,7 +112,15 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView style={styles.map} initialRegion={region} showsUserLocation showsMyLocationButton>
+      <MapView
+        style={styles.map}
+        initialRegion={region}
+        showsUserLocation
+        showsMyLocationButton
+        // Match the app's theme rather than the phone's, so map labels and
+        // the app's own text are never light-on-light or dark-on-dark.
+        userInterfaceStyle={scheme}
+      >
         {visibleEntries.map((entry) => {
           const category = entry.category ? getCategory(entry.category) : null;
           const icon = category?.icon ?? 'tag-outline';
@@ -132,7 +140,10 @@ export default function MapScreen() {
                   : undefined
               }
             >
-              <Callout>
+              {/* tooltip: draw our own themed bubble. The default one is
+                  always white on Android and follows the phone (not the
+                  app) on iOS, which hid the white dark-mode text. */}
+              <Callout tooltip>
                 <View style={styles.callout}>
                   <View style={styles.calloutHeader}>
                     <MaterialCommunityIcons name={icon} size={18} color={color} />
@@ -227,7 +238,15 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   filterText: { fontSize: 13, fontWeight: '600', color: colors.text },
   loadingBadge: { position: 'absolute', right: spacing.md },
-  callout: { minWidth: 160, padding: spacing.xs },
+  callout: {
+    minWidth: 180,
+    maxWidth: 260,
+    padding: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
   calloutHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 2 },
   calloutLabel: { fontWeight: '700', color: colors.text, fontSize: 14 },
   calloutPrice: { fontSize: 16, fontWeight: '700', color: colors.text },

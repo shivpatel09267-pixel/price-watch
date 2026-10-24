@@ -72,5 +72,7 @@ const useStyles = makeStyles(({ colors }) => ({
   name: { fontSize: 14, fontWeight: '700', color: colors.text },
   nameActive: { color: colors.onPrimary },
   meta: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  metaActive: { color: colors.primaryBorder },
+  // The label colour at reduced opacity, so it stays readable on the
+  // accent fill (the old translucent accent was invisible against it).
+  metaActive: { color: colors.onPrimary, opacity: 0.75 },
 }));

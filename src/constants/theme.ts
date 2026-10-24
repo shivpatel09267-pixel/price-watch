@@ -28,9 +28,11 @@ export const darkColors = {
   // Raised: the selected segment of a control, a pressed row.
   surfaceRaised: '#313238',
 
+  // Every text colour clears WCAG AA (4.5:1) on background, surface AND
+  // surfaceAlt — textSubtle used to sit near 3:1 and was hard to read.
   text: '#FFFFFF',
   textMuted: '#9C9CA4',
-  textSubtle: '#6B6B73',
+  textSubtle: '#909099',
 
   border: 'rgba(255, 255, 255, 0.08)',
   borderStrong: 'rgba(255, 255, 255, 0.16)',
@@ -45,8 +47,9 @@ export const darkColors = {
   warningSoft: 'rgba(255, 176, 32, 0.14)',
 
   overlay: 'rgba(0, 0, 0, 0.6)',
-  // Pure white on the orange fill clears 4.5:1; near-black does not.
-  onPrimary: '#FFFFFF',
+  // Near-black on this bright orange is 6.5:1; white was only 2.9:1, so
+  // button labels and selected chips were hard to read.
+  onPrimary: '#121214',
 };
 
 export type ColorPalette = typeof darkColors;
@@ -56,10 +59,12 @@ export type ColorPalette = typeof darkColors;
 // the accent and data colours are darkened so small text on white still
 // clears contrast.
 export const lightColors: ColorPalette = {
-  primary: '#E8590C',
-  primaryDark: '#C2410C',
-  primarySoft: 'rgba(232, 89, 12, 0.10)',
-  primaryBorder: 'rgba(232, 89, 12, 0.40)',
+  // Darker than a typical orange so it works as small text (links,
+  // per-unit prices) on every light surface, not just as a button fill.
+  primary: '#B83D0B',
+  primaryDark: '#9A3412',
+  primarySoft: 'rgba(184, 61, 11, 0.10)',
+  primaryBorder: 'rgba(184, 61, 11, 0.40)',
 
   background: '#F4F4F6',
   surface: '#FFFFFF',
@@ -68,17 +73,17 @@ export const lightColors: ColorPalette = {
 
   text: '#141416',
   textMuted: '#5E5E66',
-  textSubtle: '#8A8A93',
+  textSubtle: '#6A6A73',
 
   border: 'rgba(0, 0, 0, 0.08)',
   borderStrong: 'rgba(0, 0, 0, 0.16)',
 
-  success: '#15803D',
-  successSoft: 'rgba(21, 128, 61, 0.10)',
-  danger: '#DC2626',
-  dangerSoft: 'rgba(220, 38, 38, 0.10)',
-  warning: '#B45309',
-  warningSoft: 'rgba(180, 83, 9, 0.12)',
+  success: '#12703A',
+  successSoft: 'rgba(18, 112, 58, 0.10)',
+  danger: '#C11F1F',
+  dangerSoft: 'rgba(193, 31, 31, 0.10)',
+  warning: '#97470A',
+  warningSoft: 'rgba(151, 71, 10, 0.12)',
 
   overlay: 'rgba(0, 0, 0, 0.4)',
   onPrimary: '#FFFFFF',
@@ -126,7 +131,7 @@ export const type = {
 function shadow(
   ios: { color: string; opacity: number; radius: number; height: number },
   elevation: number,
-  css: string,
+  css: string
 ): ViewStyle {
   return Platform.select<ViewStyle>({
     ios: {
@@ -143,14 +148,22 @@ function shadow(
 export const shadows = {
   // Black shadows do nothing on a near-black ground, so cards get depth
   // from surface steps and borders instead — see card() below.
-  sm: shadow({ color: '#000000', opacity: 0.3, radius: 8, height: 3 }, 2, '0 3px 8px rgba(0,0,0,0.3)'),
-  lg: shadow({ color: '#000000', opacity: 0.5, radius: 28, height: 14 }, 12, '0 14px 28px rgba(0,0,0,0.5)'),
+  sm: shadow(
+    { color: '#000000', opacity: 0.3, radius: 8, height: 3 },
+    2,
+    '0 3px 8px rgba(0,0,0,0.3)'
+  ),
+  lg: shadow(
+    { color: '#000000', opacity: 0.5, radius: 28, height: 14 },
+    12,
+    '0 14px 28px rgba(0,0,0,0.5)'
+  ),
   // The accent glow under a primary pill — the one place a coloured
   // shadow reads clearly on dark.
   accent: shadow(
     { color: '#FF6A1A', opacity: 0.45, radius: 16, height: 8 },
     8,
-    '0 8px 16px rgba(255,106,26,0.45)',
+    '0 8px 16px rgba(255,106,26,0.45)'
   ),
 };
 
