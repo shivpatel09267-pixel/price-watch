@@ -20,9 +20,6 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       [
         "expo-location",
@@ -38,7 +35,15 @@
         }
       ],
       "expo-font",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F4EDE6",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ]
     ]
   }
 }
